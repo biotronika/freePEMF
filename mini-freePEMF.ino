@@ -1,8 +1,9 @@
-// free-PEMF See: biotronika.pl  biotronics.eu
+// mini-freePEMF See: biotronika.pl  biotronics.eu
 // Chris Czoba (c) krzysiek@biotronika.pl
+// Renew 2017-07-28 sof_ver with running  bioZAP 2018-04-09
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2017-07-28"
+#define SOFT_VER "2018-10-18"
 
 #include <EEPROM.h>
 //#include <stdio.h>
