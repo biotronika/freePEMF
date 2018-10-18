@@ -6,6 +6,7 @@
 #define SOFT_VER "2018-10-18"
 
 #include <EEPROM.h>
+#include "freePEMF_prog.h"
 //#include <stdio.h>
 
 //Pin definition
@@ -34,7 +35,7 @@
 #define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no lcd
 #define MIN_FREQ_OUT 1      //  0.01 Hz
 #define MAX_FREQ_OUT 5000   // 50.00 Hz
-#define SCAN_STEPS 100      // For scan function puropose - default steps
+#define SCAN_STEPS 20      // For scan function puropose - default steps
 #define XON 17  //0x11
 #define XOFF 19 //0x13
 
@@ -72,6 +73,7 @@ void getParams(String &inputString);
 void executeCmd(String cmdLine, boolean directMode = false);
 void eepromUpload(int adr = 0);
 boolean readSerial2Buffer(int &endBuffer);
+void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
 
  
 void setup() {  
@@ -482,9 +484,16 @@ void executeCmd(String cmdLine, boolean directMode){
       wait(param[1].toInt());
       Serial.println("OK");
 
+
     } else if (param[0]=="rec"){
 // Generate rectangle signal - rec [freq] [time_sec]
       
+      rec(param[1].toInt(), param[2].toInt());
+      Serial.println("OK");
+
+    } else if (param[0]=="freq"){
+// Generate rectangle signal - freq [freq] [time_sec]
+
       rec(param[1].toInt(), param[2].toInt());
       Serial.println("OK");
 
@@ -531,8 +540,9 @@ void exe(){
   Serial.println("OK"); 
 }
 
-void scan(unsigned long freq, unsigned long period){
+void scan(unsigned long freq, unsigned long period, int steps){
   // Scan from lastFreq to freq used SCAN_STEPS by period
+
   
   long scanSteps=SCAN_STEPS;
 
