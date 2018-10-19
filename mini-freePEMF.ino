@@ -21,21 +21,23 @@
 
 //Battery staff
 #define batPin A7                               // Analog-in battery level 
-#define BATTERY_VOLTAGE_RATIO 0.153             // nclude div 10k/4,7k resistors. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
+#define BATTERY_VOLTAGE_RATIO 0.153             // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
 #define EEPROM_BATTERY_CALIBRATION_ADDRESS 1023 // Memory address of battery correction factor - 100 means RATIO x 1,00
 #define MIN_BATTERY_LEVEL 90                    // 90 means 9.0 V  (x10), less then that turn off
-#define USB_POWER_SUPPLY_LEVEL 65               // Maximum usb voltage level means 6.5V
+#define USB_POWER_SUPPLY_LEVEL 65               // Maximum USB voltage level means 6.5V
 
 
 //BIOzap
 #define WELCOME_SCR "Free BIOzap interpreter welcome! See http://biotronika.pl"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
-#define MAX_CMD_PARAMS 3    // Count of command params 
-#define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no lcd
+#define MAX_CMD_PARAMS 3    // Count of command parameters
+#define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
 #define MIN_FREQ_OUT 1      //  0.01 Hz
 #define MAX_FREQ_OUT 5000   // 50.00 Hz
-#define SCAN_STEPS 20      // For scan function puropose - default steps
+#define SCAN_STEPS 20       // For scan function purpose - default steps
+#define MAX_LABELS 9        // jump labels maximum
+
 #define XON 17  //0x11
 #define XOFF 19 //0x13
 
@@ -47,6 +49,13 @@ boolean memComplete = false;
 unsigned long lastFreq = MIN_FREQ_OUT;  // Uses scan function
 int minBatteryLevel = 0; 
 boolean Xoff = false;
+byte b;
+int i;
+long l;
+
+int labelPointer[MAX_LABELS+1];  				// Next line of label
+int labelLoops[MAX_LABELS+1];    				// Number of left jump loops
+
 
 
 const unsigned long checkDeltaBatteryIncreasingVoltageTime = 600000UL;  // During charging battery minimum inreasing voltage after x millisecounds. 
@@ -239,19 +248,19 @@ void loop() {
       } else {
         //Standard program execute
           
-        rec(1179, 120); //2 min   11,79Hz Earth geomagnetic field
+        freq(1179, 120); //2 min   11,79Hz Earth geomagnetic field
         chp(1);
-        rec( 783, 120); //2 min    7,83 Schuman    
+        freq( 783, 120); //2 min    7,83 Schuman    
         chp(0);      
-        rec(2000,  60); //2min    20,0  Capillary (ukł. krwinośny) 
+        freq(2000,  60); //2min    20,0  Capillary (ukł. krwinośny) 
         chp(1);
-        rec(1500,  60); //2min    15,0  Capillary   
+        freq(1500,  60); //2min    15,0  Capillary   
         chp(0);
-        rec(1000,  90); //1:30min 10,0  Ligament (wiązadła)
+        freq(1000,  90); //1:30min 10,0  Ligament (wiązadła)
         chp(1);
-        rec( 700,  90); //1:30min  7,0  Bone (kości)   
+        freq( 700,  90); //1:30min  7,0  Bone (kości)   
         chp(0);
-        rec( 200, 120); //2min     2,0  Nerve 
+        freq( 200, 120); //2min     2,0  Nerve 
         beep(500);
         off();
       }
@@ -260,13 +269,13 @@ void loop() {
     case 2:
     //Earth regeneration - 8 minutes
       
-      rec(1179,120); //4 min 11,79Hz Earth geomagnetic field
+      freq(1179,120); //4 min 11,79Hz Earth geomagnetic field
       chp(1);
-      rec(1179,120); 
+      freq(1179,120); 
       chp(0);
-      rec(783, 120); //4 min 7,83 Schumanns resonance    
+      freq(783, 120); //4 min 7,83 Schumanns resonance    
       chp(1);
-      rec(783, 120); 
+      freq(783, 120); 
       beep(500);
       off();
       break;
@@ -275,14 +284,14 @@ void loop() {
     // Antistress & meditation (without feedback)
     
       // 16 min
-      rec( 1179, 120); //2 min 11,79Hz Earth geomagnetic field
+      freq( 1179, 120); //2 min 11,79Hz Earth geomagnetic field
       chp(1);
-      rec( 1200,  10); //4 min 12->8Hz  Alpha
+      freq( 1200,  10); //4 min 12->8Hz  Alpha
       scan( 800, 230); 
       chp(0);
-      rec(  783, 120); //2 min  7,83 Schumanns resonance
+      freq(  783, 120); //2 min  7,83 Schumanns resonance
       chp (1);
-      rec(  800,  10);
+      freq(  800,  10);
       scan( 400, 230);  //4 min 8->4 Theta
       chp (0);
       scan( 100, 240);  //4 min 4->0,5  Delta
@@ -384,7 +393,9 @@ void executeCmd(String cmdLine, boolean directMode){
       }
         
     } else if ( param[0]=="ls" ) {
-//List terapy
+ //List therapy
+    	ls();
+      /*
 
       if (param[1]=="-n") {
         Serial.println("Adr  Command");
@@ -411,6 +422,7 @@ void executeCmd(String cmdLine, boolean directMode){
           Serial.print(eeChar);
         }
       }
+      */
     
     } else if (param[0].charAt(0)=='#') {
 // Comment
@@ -420,15 +432,36 @@ void executeCmd(String cmdLine, boolean directMode){
     } else if (param[0]==""){
 // Emptyline
       
-      ;    
+      ;
+
+    } else if (param[0].charAt(0)==':') {
+// Label - setup for new label jump counter
+    	b = param[0].substring(1).toInt();
+    	if (b>0 && b<MAX_LABELS){
+    		if(param[1].length()>=1) {
+    			if (param[1].toInt()) {
+    				labelLoops[b] = param[1].toInt()-1;
+    			}
+
+#ifdef SERIAL_DEBUG
+        Serial.print("label: ");
+        Serial.print(b);
+        Serial.print(" ");
+        Serial.println(labelLoops[b]);
+#endif
+    		} else {
+    			labelLoops[b] = -1; //Infinity loop
+    		}
+    	}
 
     } else if (param[0]=="rm"){
-      // Remove, clear terapty
-      
-      for(int i=0; i<PROGRAM_SIZE; i++){
-        EEPROM.put(i, 255);  
-        if (!(i % 128)) Serial.print(".");
-      }
+      // Remove, clear therapy - hispeed
+
+    	EEPROM.put(0, '@');
+      //for(int i=0; i<PROGRAM_SIZE; i++){
+        //EEPROM.put(i, 255);
+        //if (!(i % 128)) Serial.print(".");
+      //}
       Serial.println("OK");
 
     } else if (param[0]=="print"){
@@ -442,17 +475,17 @@ void executeCmd(String cmdLine, boolean directMode){
       
     } else if (param[0]=="bat"){
 // Print baterry voltage
-      
+    	Serial.println( int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
         //Serial.println( int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
         Serial.println(bat());
 
     } else if (param[0]=="cbat"){
 // Calibrate battery voltage
-      
+    	//do nothing
         //Correction factor
-        byte i = 100 * param[1].toInt()/(int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
+        //byte i = 100 * param[1].toInt()/(int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
        
-        EEPROM.put(EEPROM_BATTERY_CALIBRATION_ADDRESS, i);
+        //EEPROM.put(EEPROM_BATTERY_CALIBRATION_ADDRESS, i);
         Serial.println("OK");
    
     } else if (param[0]=="hr"){
@@ -488,29 +521,36 @@ void executeCmd(String cmdLine, boolean directMode){
     } else if (param[0]=="rec"){
 // Generate rectangle signal - rec [freq] [time_sec]
       
-      rec(param[1].toInt(), param[2].toInt());
-      Serial.println("OK");
+    	if (param[1]!="" ) {
+    		freq(param[1].toInt(), param[2].toInt());
+    	}
+    	Serial.println("OK");
+
 
     } else if (param[0]=="freq"){
 // Generate rectangle signal - freq [freq] [time_sec]
 
-      rec(param[1].toInt(), param[2].toInt());
+      freq(param[1].toInt(), param[2].toInt());
       Serial.println("OK");
 
     } else if (param[0]=="scan"){
-      // Scan from lastFreq  - scan [freq to] [time_ms]
+      // Scan from lastFreq  - scan [freq to] [time_ms] <steps>
       
-      scan(param[1].toInt(), param[2].toInt());
+    	if (param[3]==""){
+    		scan(param[1].toInt(), param[2].toInt());
+    	} else {
+    		scan(param[1].toInt(), param[2].toInt(), param[3].toInt());
+    	}
       Serial.println("OK");
 
       //void scan(unsigned int freq, unsigned long period){
 
     } else if (param[0]=="exe"){
-      // Execute eeprom program only in direc mode
+      // Execute EEPROM program only in direct mode
       if ( directMode) { 
         exe();
       } else {
-        Serial.println("Error: can't execute program from eeprom program!");
+        Serial.println("Error: can't execute program from EEPROM program!");
       }
       //param[0]="";
 
@@ -521,6 +561,18 @@ void executeCmd(String cmdLine, boolean directMode){
     
 
 }
+
+void rm(){
+// Remove, clear script therapy from memory
+	EEPROM.put(0, '@');
+
+//	for(int i=0; i<PROGRAM_SIZE; i++){
+//		EEPROM.put(i, 255);
+		//if (!(i % 128)) Serial.print(".");
+//	}
+	//Serial.println("OK");
+}
+
 
 void exe(){
   //Execute program 
@@ -540,7 +592,7 @@ void exe(){
   Serial.println("OK"); 
 }
 
-void scan(unsigned long freq, unsigned long period, int steps){
+void scan(unsigned long freq_, unsigned long period, int steps){
   // Scan from lastFreq to freq used SCAN_STEPS by period
 
   
@@ -553,7 +605,7 @@ void scan(unsigned long freq, unsigned long period, int steps){
     stepPeriod=1;
   }
   long startFreq = lastFreq;
-  long stepFreq = long( constrain(freq, MIN_FREQ_OUT, MAX_FREQ_OUT) - lastFreq ) / scanSteps;
+  long stepFreq = long( constrain(freq_, MIN_FREQ_OUT, MAX_FREQ_OUT) - lastFreq ) / scanSteps;
 /*
   Serial.println(freq);
   Serial.println(lastFreq);
@@ -565,12 +617,46 @@ void scan(unsigned long freq, unsigned long period, int steps){
 */  
 
   for (int i=0; i<scanSteps; i++) {
-    rec(startFreq+(i*stepFreq), stepPeriod);
+    freq(startFreq+(i*stepFreq), stepPeriod);
   }
 }
 
+void ls(){
+//List script therapy
+	int adr=0;
+	int endLine;
+	String line;
 
-void rec(unsigned int freq, unsigned long period) {
+	if (param[1]=="-n") {
+		Serial.println("Adr  Command");
+
+		while ((endLine = readEepromLine(adr,line)) && (adr<PROGRAM_SIZE) ){
+		  Serial.print(formatLine(adr,line));
+		  adr = adr + endLine;
+		}
+
+		//End marker (@) informs an user where to start appending of program
+		if (adr<PROGRAM_SIZE) {
+			Serial.println(formatLine(adr,"@"));
+		}
+
+	} else {
+
+		for(int i=0; i<PROGRAM_SIZE; i++){
+			char eeChar=(char)EEPROM.read(i);
+
+			if ((eeChar=='@') || (eeChar==char(255))) {
+				break;
+			}
+
+			Serial.print(eeChar);
+		}
+	}
+
+}
+
+
+void freq(unsigned int freq, unsigned long period) {
   //Rectangle signal generate, freq=783 for 7.83Hz, period in secounds
 
   lastFreq =constrain( freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function puropose
@@ -849,8 +935,12 @@ void getParams(String &inputString){
   }
 }
 
+
+
+
+/////////////////////////////////////////////////////////////////////////////
 /*
-void eepromUpload(int adr = 0) {
+ void eepromUpload(int adr) {
   unsigned int i = 0;
   boolean flagCompleted = false;
 
@@ -865,31 +955,7 @@ void eepromUpload(int adr = 0) {
   }
   if (i<PROGRAM_SIZE) EEPROM.put(i, 255); //End of shorter program then PROGRAM_SIZE size
 }
-*/
-/////////////////////////////////////////////////////////////////////////////
-void serialEvent() {
- //if (!eepromLoad) {
-  while (Serial.available()) {
-    // get the new byte:
-    char inChar = (char)Serial.read();
-    // add it to the inputString:
-    if (inChar!='\r'){
-      inputString += inChar;
-    }
-    
-    Serial.print(inChar); //echo
-
-    // if the incoming character is a newline, set a flag
-    if (inChar == '\n') {
-      stringComplete = true;
-    }
-    
-    if (inChar == '@') {
-      memComplete = true;
-    }
-  }
- //}
-}
+ */
 
 void eepromUpload(int adr) {
   unsigned int i = 0;

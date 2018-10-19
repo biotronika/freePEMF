@@ -3,12 +3,10 @@ One Arduino ino file, with frequency up to 50Hz.
 
 Related document: https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf
 
-
-#TODO:
+# TODO:
 * ls -n
 * restart
-* rec
-* freq
+* rec noparametres
 * sin
 * pwm
 * vmin
@@ -23,4 +21,6 @@ Related document: https://biotronika.pl/sites/default/files/2018-04/bioZAP%20201
 * njump
 * jump3
 
+# DONE
+* freq
 
