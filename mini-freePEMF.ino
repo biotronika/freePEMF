@@ -3,14 +3,14 @@
 // Renew 2017-07-28 sof_ver with running  bioZAP 2018-04-09
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-18"
+#define SOFT_VER "2018-10-19"
 
 #include <EEPROM.h>
 #include "freePEMF_prog.h"
 //#include <stdio.h>
 
 //Pin definition
-#define coilPin 5      // Coil driver IRF510
+#define coilPin 5      // Coil driver IRF540
 #define powerPin 4     // Power relay
 #define relayPin 9     // Direction relay
 #define buzzPin 10     // Buzzer
@@ -28,7 +28,7 @@
 
 
 //BIOzap
-#define WELCOME_SCR "Free BIOzap interpreter welcome! See http://biotronika.pl"
+#define WELCOME_SCR "Free BIOzap interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
 #define MAX_CMD_PARAMS 3    // Count of command parameters
@@ -167,16 +167,18 @@ void setup() {
   delay(10);
 
   //Auto-correction voltage - for new device
+  /*
   if ( (byte)EEPROM.read(EEPROM_BATTERY_CALIBRATION_ADDRESS) > 130 ||
        (byte)EEPROM.read(EEPROM_BATTERY_CALIBRATION_ADDRESS) < 70 ) {
     EEPROM.put(EEPROM_BATTERY_CALIBRATION_ADDRESS,100); // 100 =  x 1.00
   }
+  */
   
   //Define minimum battery level uses in working for perfomance puropose.
   minBatteryLevel /*0-1023*/= 100 * 
                               MIN_BATTERY_LEVEL / 
-                              BATTERY_VOLTAGE_RATIO / 
-                              (byte)EEPROM.read(EEPROM_BATTERY_CALIBRATION_ADDRESS);
+                              BATTERY_VOLTAGE_RATIO ; /* /
+                              (byte)EEPROM.read(EEPROM_BATTERY_CALIBRATION_ADDRESS);*/
 
                                 
  if (programNo) { 
@@ -329,6 +331,7 @@ void loop() {
     default: 
     
     // PC controled program   
+
       if (stringComplete) {
 
         //Restart timeout interval to turn off. 
@@ -395,34 +398,7 @@ void executeCmd(String cmdLine, boolean directMode){
     } else if ( param[0]=="ls" ) {
  //List therapy
     	ls();
-      /*
 
-      if (param[1]=="-n") {
-        Serial.println("Adr  Command");
-        int adr=0;
-        int endLine;
-        String line;
-
-        while ((endLine = readEepromLine(adr,line)) && (adr<PROGRAM_SIZE) ){
-          //if (line.charAt(0)=='@') break;
-           
-          Serial.print(formatLine(adr,line));
-          adr = adr + endLine;
-       }
-       
-       //End marker informs an user where start append program 
-       if (adr<PROGRAM_SIZE) Serial.println(formatLine(adr,"@")); 
-          
-      } else {
-      
-        for(int i=0; i<PROGRAM_SIZE; i++){
-          char eeChar=(char)EEPROM.read(i);
-          if ((eeChar=='@') || (eeChar==char(255))) break;
-          //if (eeChar==char(255)) break;
-          Serial.print(eeChar);
-        }
-      }
-      */
     
     } else if (param[0].charAt(0)=='#') {
 // Comment
@@ -512,9 +488,13 @@ void executeCmd(String cmdLine, boolean directMode){
       Serial.println("OK");
 
     } else if (param[0]=="wait"){
-// Wait millis
-        
-      wait(param[1].toInt());
+// Wait millis or micros (negative value)
+    	int w = param[1].toInt();
+    	if (w>=0) {
+    		wait(w);
+    	} else {
+    		delayMicroseconds(-w);
+    	}
       Serial.println("OK");
 
 
@@ -790,6 +770,7 @@ void wait( unsigned long period) {
 
 }
 
+
 void beep( unsigned int period) {
   // beep [period_ms]
 
@@ -939,6 +920,30 @@ void getParams(String &inputString){
 
 
 /////////////////////////////////////////////////////////////////////////////
+void serialEvent() {
+
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    if (inChar!='\r'){
+      inputString += inChar;
+    }
+
+    Serial.print(inChar); //echo
+
+    // if the incoming character is a newline, set a flag
+    if (inChar == '\n') {
+      stringComplete = true;
+    }
+
+    if (inChar == '@') {
+      memComplete = true;
+    }
+  }
+
+}
+
 /*
  void eepromUpload(int adr) {
   unsigned int i = 0;

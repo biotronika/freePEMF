@@ -1,12 +1,12 @@
 # mini-freePEMF
 One Arduino ino file, with frequency up to 50Hz.
 
-Related document: https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf
+Related document: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-04-09%20EN.pdf
+
 
 # TODO:
-* ls -n
+
 * restart
-* rec noparametres
 * sin
 * pwm
 * vmin
@@ -23,4 +23,5 @@ Related document: https://biotronika.pl/sites/default/files/2018-04/bioZAP%20201
 
 # DONE
 * freq
-
+* ls -n
+* rec noparametres
