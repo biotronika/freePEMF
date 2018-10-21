@@ -31,7 +31,7 @@
 #define WELCOME_SCR "Free BIOzap interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
-#define MAX_CMD_PARAMS 3    // Count of command parameters
+#define MAX_CMD_PARAMS 4    // Count of command parameters
 #define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
 #define MIN_FREQ_OUT 1      //  0.01 Hz
 #define MAX_FREQ_OUT 5000   // 50.00 Hz
