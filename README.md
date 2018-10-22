@@ -1,7 +1,7 @@
 # mini-freePEMF
 One Arduino ino file, with frequency up to 50Hz.
 
-Related document: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-04-09%20EN.pdf
+Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
 
 
 # TODO:
