@@ -12,7 +12,7 @@
 #define SOFT_VER "2018-10-24"
 
 #include <EEPROM.h>
-//TODO
+//TODO1
 #include "freePEMF_prog.h"
 //#include <stdio.h>
 
