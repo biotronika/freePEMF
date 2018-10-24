@@ -85,25 +85,8 @@ const char internalProgram[] PROGMEM   = {
 		"freq 130 20\n"
 		"freq 100 20\n"
 		"off \n"
-			
-/*
-        ":4\n"
-		"#Pineal gland 15m\n"
-		"beep 200\n"
-		"freq 783 120\n"
-		"chp 1\n"
-		"freq 2000 180\n"
-		"chp 0\n"
-		"freq 53700 180\n"
-		"chp 1\n"
-		"freq 66200 180\n"
-		"chp 0\n"
-		"freq 93600 180\n"
-		"beep 200\n"
-		"off\n"
-*/
-		"@"
 
+		"@"
 
 };
 
