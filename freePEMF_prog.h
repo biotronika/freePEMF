@@ -42,10 +42,6 @@ const char internalProgram[] PROGMEM   = {
 		"off \n"
 
 		":3\n"
-		"#Antistress & meditation 16 m\n"
-
-		"off \n"
-			
 		"#Antisterss & meditation 16 m\n"
 		"freq 1200 20\n"
 		"freq 1179 150\n"
@@ -54,40 +50,40 @@ const char internalProgram[] PROGMEM   = {
 		"freq 1133 20\n"
 		"freq 1100 20\n"
 		"freq 1066 20\n"
-freq 1033 20
-freq 1000 20
-freq 966 20
-freq 933 20
-freq 900 20
-freq 866 20
-freq 833 20
-freq 800 20
-chp 0
-freq 800 20
-freq 783 120
-chp 1
-freq 766 20
-freq 733 20
-freq 700 20
-freq 666 20
-freq 633 20
-freq 600 20
-freq 566 20
-freq 533 20
-freq 500 20
-freq 466 20
-freq 433 20
-freq 400 20
-chp 0
-freq 366 20
-freq 333 20
-freq 300 20
-freq 266 20
-freq 233 20
-freq 200 20
-freq 166 20
-freq 130 20
-freq 100 20
+		"freq 1033 20\n"
+		"freq 1000 20\n"
+		"freq 966 20\n"
+		"freq 933 20\n"
+		"freq 900 20\n"
+		"freq 866 20\n"
+		"freq 833 20\n"
+		"freq 800 20\n"
+		"chp 0\n"
+		"freq 800 20\n"
+		"freq 783 120\n"
+		"chp 1\n"
+		"freq 766 20\n"
+		"freq 733 20\n"
+		"freq 700 20\n"
+		"freq 666 20\n"
+		"freq 633 20\n"
+		"freq 600 20\n"
+		"freq 566 20\n"
+		"freq 533 20\n"
+		"freq 500 20\n"
+		"freq 466 20\n"
+		"freq 433 20\n"
+		"freq 400 20\n"
+		"chp 0\n"
+		"freq 366 20\n"
+		"freq 333 20\n"
+		"freq 300 20\n"
+		"freq 266 20\n"
+		"freq 233 20\n"
+		"freq 200 20\n"
+		"freq 166 20\n"
+		"freq 130 20\n"
+		"freq 100 20\n"
 		"off \n"
 			
 /*
