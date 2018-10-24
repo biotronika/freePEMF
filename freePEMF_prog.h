@@ -42,47 +42,52 @@ const char internalProgram[] PROGMEM   = {
 		"off \n"
 
 		":3\n"
-		"#Antistress & meditation 16 m\n"
-		"rec 1179 120\n"
+		"#Antisterss & meditation 16 m\n"
+		"freq 1200 20\n"
+		"freq 1179 150\n"
 		"chp 1\n"
-		"rec 1200 10\n"
-		"scan 800 230\n"
+		"freq 1166 20\n"
+		"freq 1133 20\n"
+		"freq 1100 20\n"
+		"freq 1066 20\n"
+		"freq 1033 20\n"
+		"freq 1000 20\n"
+		"freq 966 20\n"
+		"freq 933 20\n"
+		"freq 900 20\n"
+		"freq 866 20\n"
+		"freq 833 20\n"
+		"freq 800 20\n"
 		"chp 0\n"
-		"rec 783 120\n"
-		"chp 1\n"
-		"rec 800 10\n"
-		"scan 400 230\n"
-		"chp 0\n"
-		"scan 100 240\n"
-		"beep 500\n"
-		"off \n"
-/*
-        ":4\n"
-		"#Pineal gland 15m\n"
-		"beep 200\n"
+		"freq 800 20\n"
 		"freq 783 120\n"
 		"chp 1\n"
-		"freq 2000 180\n"
+		"freq 766 20\n"
+		"freq 733 20\n"
+		"freq 700 20\n"
+		"freq 666 20\n"
+		"freq 633 20\n"
+		"freq 600 20\n"
+		"freq 566 20\n"
+		"freq 533 20\n"
+		"freq 500 20\n"
+		"freq 466 20\n"
+		"freq 433 20\n"
+		"freq 400 20\n"
 		"chp 0\n"
-		"freq 53700 180\n"
-		"chp 1\n"
-		"freq 66200 180\n"
-		"chp 0\n"
-		"freq 93600 180\n"
-		"beep 200\n"
-		"off\n"
-*/
+		"freq 366 20\n"
+		"freq 333 20\n"
+		"freq 300 20\n"
+		"freq 266 20\n"
+		"freq 233 20\n"
+		"freq 200 20\n"
+		"freq 166 20\n"
+		"freq 130 20\n"
+		"freq 100 20\n"
+		"off \n"
+
 		"@"
 
-
 };
-
-
-
-
-
-
-
-
 
 #endif /* FREEPEMF_PROG_H_ */
