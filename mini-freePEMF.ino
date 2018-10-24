@@ -9,7 +9,7 @@
 #define SERIAL_DEBUG
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-22"
+#define SOFT_VER "2018-10-24"
 
 #include <EEPROM.h>
 //TODO
@@ -50,6 +50,7 @@
 
 //BIOzap
 String inputString = "";                // a string to hold incoming serial data
+String line;
 String param[MAX_CMD_PARAMS];           // param[0] = cmd name
 boolean stringComplete = false;         // whether the string is complete
 boolean memComplete = false;
@@ -60,8 +61,9 @@ byte b;
 int i;
 long l;
 
-int labelPointer[MAX_LABELS+1];  				// Next line of label
-unsigned int labelLoops[MAX_LABELS+1];    				// Number of left jump loops
+int labelPointer[MAX_LABELS+1];  		// Next line of label
+unsigned int labelLoops[MAX_LABELS+1];  // Number of left jump loops
+int adr=0;								// Script interpreter pointer
 
 
 
@@ -86,7 +88,7 @@ char memBuffer[PROGRAM_BUFFER];
 //function prototypes
 int readEepromLine(int fromAddress, String &lineString);
 void getParams(String &inputString);
-void executeCmd(String cmdLine, boolean directMode = false);
+int executeCmd(String cmdLine, boolean directMode = false);
 void eepromUpload(int adr = 0);
 boolean readSerial2Buffer(int &endBuffer);
 
@@ -138,6 +140,7 @@ void setup() {
   } else {
     //Power supplier id plugged
 
+	  /*
 //TODO - usunac od tego miejsca
     if (digitalRead(hrmPin)==LOW) {
       //Work as the water magnetizer
@@ -166,7 +169,7 @@ void setup() {
       
       //digitalWrite(greenPin, LOW);
     }
-// usunac do tego miejsca
+// usunac do tego miejsca */
     
     //Work as a power charger
     rechargeBattery();
@@ -344,7 +347,7 @@ void loop() {
      
     default: 
     
-    // PC controled program   
+    // PC controlled program
 
       if (stringComplete) {
 
@@ -377,7 +380,7 @@ String formatLine(int adr, String line){
   return printLine;
 }
 
-void executeCmd(String cmdLine, boolean directMode){
+int executeCmd(String cmdLine, boolean directMode){
   // Main interpreter function
   //digitalWrite(powerPin, HIGH);
   getParams(cmdLine);
@@ -424,6 +427,21 @@ void executeCmd(String cmdLine, boolean directMode){
     			labelLoops[b] = -1; //Infinity loop
     		}
     	}
+
+    } else if (param[0]=="jump"){
+// Jump [label number]
+
+    	 if (  jump(param[1].toInt(), adr)  )  {
+
+    	#ifdef SERIAL_DEBUG
+    	        Serial.print("jump0: ");
+    	        Serial.println(param[1].toInt());
+    	        Serial.print("jump0 adr: ");
+    	        Serial.println(adr);
+    	#endif
+    	   	    	return adr;
+    	   	    }
+
 
     } else if (param[0]=="rm"){
       // Remove, clear therapy - high speed
@@ -534,7 +552,7 @@ void executeCmd(String cmdLine, boolean directMode){
       Serial.println("Unknown command: "+param[0]);         
     }
     
-
+return 0;
 }
 
 void rm(){
@@ -579,18 +597,120 @@ int mem(String param){
     }
     return 0;
 }
+int readFlashLine(int fromAddress, String &lineString){
+	  //Read one line from EEPROM memory
+	  int i = 0;
+	  lineString="";
+
+#ifdef SERIAL_DEBUG
+	  	//Serial.print("readFlashLine1 fromAddress: ");
+		//Serial.println(fromAddress);
+#endif
+
+	  do {
+
+	    char eeChar = char( pgm_read_byte(&internalProgram[fromAddress+i])  )  ;
+
+#ifdef SERIAL_DEBUG
+	  	//Serial.print("readFlashLine2 eeChar: ");
+		//Serial.println(eeChar);
+#endif
+	    if ( eeChar==char('@') ) {
+	      if (i>0) {
+	        eeChar='\n';
+	      } else {
+	        i=0;
+	        break;
+	      }
+	    }
+	    lineString+=eeChar;
+	    i++;
+	    if (eeChar=='\n') break;
+	  } while (1);
+#ifdef SERIAL_DEBUG
+	  	//Serial.print("readFlashLine3 i: ");
+		//Serial.println(i);
+#endif
+	  return i;
+}
 
 
+int readLabelPointers(int prog){
+	/* Initialize Labels pointers and jump loops
+	 * prog:
+	 * 0 - user program, jumps have counters,
+	 * 1-9 Internal programs,
+	 */
+	int i;
+	int adr=0;
+
+	for(i=1; i<MAX_LABELS+1; i++ )
+		labelLoops[i] = 0;
+
+	i=0;
+
+	do {
+		if (prog>0) {
+			//Internal program addresses
+			adr = readFlashLine(i,line);
+			getParams(line);
+		} else {
+			//EEPROM program labels
+			adr = readEepromLine(i,line);
+			getParams(line);
+		}
+
+		if (line.length()>1)
+		if (line[0]==':'){
+			byte lblNo = line[1]-48;
+			if(lblNo>0 && lblNo<10){
+				labelPointer[lblNo] = i+line.length();  // Next line of label
+				//labelPointer[lblNo] = adr;  // Next line of label
+				if (param[1].length()){
+
+					if (param[1].toInt()>0) {
+						labelLoops[lblNo] = param[1].toInt()-1;
+					}
+
+				} else {
+					labelLoops[lblNo] = -1;
+				}
+
+				if (lblNo==prog && prog>0) return labelPointer[lblNo];
+
+			}
+		}
+
+		i+=line.length();
+		//i=adr;
+
+	} while(adr);
+
+#ifdef SERIAL_DEBUG
+	for (i=1; i<MAX_LABELS+1;i++){
+		Serial.print("Label: ");
+		Serial.print(i);
+		Serial.print(" loops: ");
+		Serial.print(labelLoops[i]);
+		Serial.print(" ptr: ");
+		Serial.println(labelPointer[i]);
+	}
+#endif
+
+
+	return 0;
+}
 void exe(){
   //Execute program 
-  
-  int adr=0;
+	readLabelPointers(0);
+  //int adr=0;
   String line;
   while (int endLine = readEepromLine(adr,line)){
 
-    Serial.print("executing: ");
+    Serial.print("Exe: ");
     Serial.print(line);  
 
+    //TODO wskaznik!!!!! endLine przy zmianie adresu
     executeCmd(line);
     adr = adr + endLine;
   }
