@@ -90,12 +90,4 @@ const char internalProgram[] PROGMEM   = {
 
 };
 
-
-
-
-
-
-
-
-
 #endif /* FREEPEMF_PROG_H_ */
