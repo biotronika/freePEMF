@@ -4,17 +4,19 @@
  * Chris Czoba (c) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl (for Polish)
  *
- * Renew 2017-07-28 sof_ver with running  bioZAP 2018-10-21
+ * New 2017-07-28 software version running bioZAP 2018-10-21
+ * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
  */
-#define SERIAL_DEBUG
+
+//#define SERIAL_DEBUG   //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
 #define SOFT_VER "2018-10-25"
 
 #include <EEPROM.h>
-//TODO1
+//TODO Integrate freePEMF_prog with this file
 #include "freePEMF_prog.h"
-#include <stdio.h>
+//#include <stdio.h>
 
 //Pin definition
 #define coilPin 5      // Coil driver IRF540
@@ -27,14 +29,14 @@
 #define hrmPin 2       // Biofeedback HR meter on 3th plug pin.
 
 //Battery staff
-#define batPin PIN_A7                               // Analog-in battery level
+#define batPin PIN_A7                           // Analog-in battery level
 #define BATTERY_VOLTAGE_RATIO 0.153             // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
 #define EEPROM_BATTERY_CALIBRATION_ADDRESS 1023 // Memory address of battery correction factor - 100 means RATIO x 1,00
 #define MIN_BATTERY_LEVEL 90                    // 90 means 9.0 V  (x10), less then that turn off
 #define USB_POWER_SUPPLY_LEVEL 65               // Maximum USB voltage level means 6.5V
 
 
-//BIOzap
+//bioZAP
 #define WELCOME_SCR "Free BIOzap interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
@@ -45,10 +47,11 @@
 #define SCAN_STEPS 20       // For scan function purpose - default steps
 #define MAX_LABELS 9        // jump labels maximum
 
+//TODO delete
 #define XON 17  //0x11
 #define XOFF 19 //0x13
 
-//BIOzap
+//bioZAP
 String inputString = "";                // a string to hold incoming serial data
 String line;
 String param[MAX_CMD_PARAMS];           // param[0] = cmd name
@@ -61,10 +64,10 @@ byte b;
 int i;
 long l;
 
-int labelPointer[MAX_LABELS+1];  		// Next line of label
+//bioZAP jump & labels
+int labelPointer[MAX_LABELS+1];  		// Next line beginning address of label
 unsigned int labelLoops[MAX_LABELS+1];  // Number of left jump loops
 int adr=0;								// Script interpreter pointer
-
 
 
 const unsigned long checkDeltaBatteryIncreasingVoltageTime = 600000UL;  // During charging battery minimum increasing voltage after x milliseconds.
@@ -86,116 +89,86 @@ byte hr = 0;                    // User pulse from hrmPin
 char memBuffer[PROGRAM_BUFFER];
 
 //function prototypes
-int readEepromLine(int fromAddress, String &lineString);
+ int readEepromLine(int fromAddress, String &lineString);
 void getParams(String &inputString);
-int executeCmd(String cmdLine, boolean directMode = false);
+ int executeCmd(String cmdLine, boolean directMode = false);
 void eepromUpload(int adr = 0);
 boolean readSerial2Buffer(int &endBuffer);
 
 //bioZAP functions
 void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
-int jump(int labelNumber, int &adr);
+ int jump(int labelNumber, int &adr);
 void off();
 void beep( unsigned int period);
 //void freq(unsigned long Freq, unsigned int period);
  int bat();
 void wait( unsigned long period);
 //void exe(int &adr, int prog=-1);
-//void scan(unsigned long Freq, unsigned int period);
-int mem(String param);
+ int mem(String param);
 void ls();
 void rm();
 
  
 void setup() {  
               
-  // Initialize the digital pin as an in/output
-  pinMode(coilPin,  OUTPUT);  // Coil driver
-  pinMode(powerPin, OUTPUT);  // Power relay
-  pinMode(greenPin, OUTPUT);  // LED on board  
-  pinMode(redPin,   OUTPUT);  // LED on board 
-  pinMode(relayPin, OUTPUT);  // Direction signal relay
-  pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
-  pinMode(btnPin,    INPUT);  // Main button
-  pinMode(hrmPin,    INPUT_PULLUP); //Devices connection   
+	// Initialize the digital pin as an in/output
+	pinMode(coilPin,  OUTPUT);  // Coil driver
+	pinMode(powerPin, OUTPUT);  // Power relay
+	pinMode(greenPin, OUTPUT);  // LED on board
+	pinMode(redPin,   OUTPUT);  // LED on board
+	pinMode(relayPin, OUTPUT);  // Direction signal relay
+	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
+	pinMode(btnPin,    INPUT);  // Main button
+	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
 
-  //BIOzap
-  // Initialize serial communication to PC communication
-  Serial.begin(9600);
-  // reserve the bytes for the inputString:
-  inputString.reserve(65); //NANO serial buffer has 63 bytes
+	//bioZAP
+	// Initialize serial communication to PC communication
+	Serial.begin(9600);
 
-  
-  if (bat() < USB_POWER_SUPPLY_LEVEL) { 
-    //Detected USB PC connection
+	// Reserve the memory for inputString:
+	inputString.reserve(65); //NANO serial buffer has 63 bytes
 
-    programNo = 0; //PC
-    
-  } else if (digitalRead(btnPin)==HIGH) {
-    //Power button pressed
-    
-    //Turn power on
-    digitalWrite(powerPin, HIGH);
-    
-  } else {
-    //Power supplier id plugged
-
-	  /*
-//TODO - usunac od tego miejsca
-    if (digitalRead(hrmPin)==LOW) {
-      //Work as the water magnetizer
-
-      //Special signal
-      digitalWrite(greenPin, HIGH);
-      digitalWrite(redPin, HIGH);
-      beep(250);
-      delay(1000);
-      digitalWrite(redPin, LOW);
-      
-      digitalWrite(greenPin, HIGH);
-      
-      beep(250);
-      delay(1000);
-
-      //Forever  loop
-      while (1) {
-        digitalWrite(greenPin, HIGH);
-        digitalWrite(powerPin, HIGH);
-        delay(50);
-        executeCmd("exe\n",true); //default programNo;
-        digitalWrite(powerPin, LOW);
-        delay(10000);
-      }
-      
-      //digitalWrite(greenPin, LOW);
-    }
-// usunac do tego miejsca */
-    
-    //Work as a power charger
-    rechargeBattery();
-  }
-
-  //Turn on green LED
-  digitalWrite(greenPin, HIGH);
-  beep(200);
-  
-  //Wait until turn-on button release
-  startInterval = millis();
-  while (digitalRead(btnPin)==HIGH){
-    if ( millis() > ( startInterval + btnTimeOut ) ) {
-      programNo = 4; //Coil measurement test 
-      digitalWrite(redPin, HIGH);
-      
-    }
-  };
-  
-  delay(10);
 
   
-  //Define minimum battery level uses in working for performance purpose.
-  minBatteryLevel /*0-1023*/= 100 * 
-                              (MIN_BATTERY_LEVEL /
-                              BATTERY_VOLTAGE_RATIO) ;
+	if (bat() < USB_POWER_SUPPLY_LEVEL) {
+		//Detected USB PC connection
+
+		programNo = 0; //PC
+    
+	} else if (digitalRead(btnPin)==HIGH) {
+		//Power button pressed
+    
+		//Turn power on
+		digitalWrite(powerPin, HIGH);
+    
+	} else {
+		//Power supplier id plugged
+
+    
+		//Work as a power charger
+		rechargeBattery();
+	}
+
+
+	//Turn on green LED
+	digitalWrite(greenPin, HIGH);
+	beep(200);
+  
+	//Wait until turn-on button release
+	startInterval = millis();
+	while (digitalRead(btnPin)==HIGH){
+		if ( millis() > ( startInterval + btnTimeOut ) ) {
+			programNo = 4; //Coil measurement test
+			digitalWrite(redPin, HIGH);
+      
+		}
+	}
+  
+	delay(10);
+
+  
+	//Define minimum battery level uses in working for performance purpose.
+	minBatteryLevel /*0-1023*/= 100 * (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
 
                                 
  if (programNo) { 
@@ -701,22 +674,23 @@ int readLabelPointers(int prog){
 	return 0;
 }
 void exe(){
-  //Execute program 
+	//Execute program
 	readLabelPointers(0);
-  //int adr=0;
-  String line;
-  while (int endLine = readEepromLine(adr,line)){
+	//int adr=0;
+	String line;
+  		while (int endLine = readEepromLine(adr,line)){
+  			adr = adr + endLine;
 
-    Serial.print("Exe: ");
-    Serial.print(line);  
+  			Serial.print("Exe: ");
+  			Serial.print(line);
 
-    //TODO wskaznik!!!!! endLine przy zmianie adresu
-    executeCmd(line);
-    adr = adr + endLine;
-  }
+  			executeCmd(line);
+  			//adr = adr + endLine;
+
+  		}
        
-  Serial.println("Script done."); 
-  Serial.println("OK"); 
+  		Serial.println("Script done.");
+  		Serial.println("OK");
 }
 
 int jump(int labelNumber, int &adr){
