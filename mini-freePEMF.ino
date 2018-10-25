@@ -8,15 +8,13 @@
  * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
  */
 
-//#define SERIAL_DEBUG   //Uncomment this line for debug purpose
+//#define SERIAL_DEBUG     //Uncomment this line for debug purpose
+#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
 #define SOFT_VER "2018-10-25"
 
 #include <EEPROM.h>
-//TODO Integrate freePEMF_prog with this file
-//#include "freePEMF_prog.h"
-//#include <stdio.h>
 
 //Pin definition
 #define coilPin 5      // Coil driver IRF540
@@ -29,11 +27,10 @@
 #define hrmPin 2       // Biofeedback HR meter on 3th plug pin.
 
 //Battery staff
-#define batPin PIN_A7                           // Analog-in battery level
-#define BATTERY_VOLTAGE_RATIO 0.153             // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
-#define EEPROM_BATTERY_CALIBRATION_ADDRESS 1023 // Memory address of battery correction factor - 100 means RATIO x 1,00
-#define MIN_BATTERY_LEVEL 90                    // 90 means 9.0 V  (x10), less then that turn off
-#define USB_POWER_SUPPLY_LEVEL 65               // Maximum USB voltage level means 6.5V
+#define batPin PIN_A7                 // Analog-in battery level
+#define BATTERY_VOLTAGE_RATIO 0.153   // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
+#define MIN_BATTERY_LEVEL 90          // 90 means 9.0 V  (x10), less then that turn off
+#define USB_POWER_SUPPLY_LEVEL 65     // Maximum USB voltage level means 6.5V
 
 
 //bioZAP
@@ -104,7 +101,7 @@ void beep( unsigned int period);
 //void freq(unsigned long Freq, unsigned int period);
  int bat();
 void wait( unsigned long period);
-//void exe(int &adr, int prog=-1);
+void exe(int &adr, int prog=0);
  int mem(String param);
 void ls();
 void rm();
@@ -228,118 +225,85 @@ void setup() {
 void loop() {
 
   switch (programNo) {
-    case 1:
-      //Check if user program is load in EEPROM memory
-      //eeFirst=(byte)EEPROM.read(0);
-      //Serial.println(eeFirst);
-      if ((byte)EEPROM.read(0)!=255 && (byte)EEPROM.read(0)!=0) {
-        //User program execute
-   
-        executeCmd("exe\n",true);
-        off();
-        
-      } else {
-        //Standard program execute
-          
-        freq(1179, 120); //2 min   11,79Hz Earth geomagnetic field
-        chp(1);
-        freq( 783, 120); //2 min    7,83 Schuman    
-        chp(0);      
-        freq(2000,  60); //2min    20,0  Capillary (ukł. krwinośny) 
-        chp(1);
-        freq(1500,  60); //2min    15,0  Capillary   
-        chp(0);
-        freq(1000,  90); //1:30min 10,0  Ligament (wiązadła)
-        chp(1);
-        freq( 700,  90); //1:30min  7,0  Bone (kości)   
-        chp(0);
-        freq( 200, 120); //2min     2,0  Nerve 
-        beep(500);
-        off();
-      }
-      break;
+    	case 1:
+    	//Check if user program is load in EEPROM memory
+
+		  if ((byte)EEPROM.read(0)!=255 && (byte)EEPROM.read(0)!=0) {
+
+			  //User program execute
+			  executeCmd("exe\n",true);
+			  off();
+
+		  } else {
+
+			  //Standard program execute
+			  executeCmd("exe 1\n",true);
+
+		  } break;
       
-    case 2:
-    //Earth regeneration - 8 minutes
-      
-      freq(1179,120); //4 min 11,79Hz Earth geomagnetic field
-      chp(1);
-      freq(1179,120); 
-      chp(0);
-      freq(783, 120); //4 min 7,83 Schumanns resonance    
-      chp(1);
-      freq(783, 120); 
-      beep(500);
-      off();
-      break;
+		case 2:
 
-    case 3:
-    // Antistress & meditation (without feedback)
+			//Earth regeneration
+		  	executeCmd("exe 2\n",true);
+
+		  break;
+
+		case 3:
+
+			// Antistress & meditation
+			executeCmd("exe 3\n",true);
+
+		  break;
+
+		case 4:
+
+			digitalWrite(redPin, LOW);
+			while(1) {
+				checkBattLevel(); //If too low then off
+
+				if (digitalRead(btnPin)) {
+					startInterval = millis();
+					beep(100);
+					while(digitalRead(btnPin));
+
+						if ((millis()-startInterval) > btnTimeOut ) {
+							beep(500);
+							off();
+						}
+
+						if (coilState == LOW) {
+							coilState = HIGH;
+						} else {
+							coilState = LOW;
+						}
+
+						digitalWrite(coilPin, coilState);   // turn coil on/off
+						digitalWrite(redPin, coilState);   // turn LED on/off
+
+				}
+			} break;
+
+		default:
     
-      // 16 min
-      freq( 1179, 120); //2 min 11,79Hz Earth geomagnetic field
-      chp(1);
-      freq( 1200,  10); //4 min 12->8Hz  Alpha
-      scan( 800, 230); 
-      chp(0);
-      freq(  783, 120); //2 min  7,83 Schumanns resonance
-      chp (1);
-      freq(  800,  10);
-      scan( 400, 230);  //4 min 8->4 Theta
-      chp (0);
-      scan( 100, 240);  //4 min 4->0,5  Delta
-      beep(500);
-      off();
-      break;
+			// PC controlled program
+			if (stringComplete) {
 
-    case 4:
-      digitalWrite(redPin, LOW);
-      while(1) {
-        checkBattLevel(); //If too low then off
-        if (digitalRead(btnPin)) { 
-          startInterval = millis();
-          beep(100); 
-          while(digitalRead(btnPin));
-          
-          if ((millis()-startInterval) > btnTimeOut ) { 
-            beep(500); 
-            off();
-          }
-                            
-          if (coilState == LOW) {
-            coilState = HIGH;
-          } else {
-            coilState = LOW;
-          }
-        
-          digitalWrite(coilPin, coilState);   // turn coil on/off 
-          digitalWrite(redPin, coilState);   // turn LED on/off
+				//Restart timeout interval to turn off.
+				startInterval=millis();
 
-        }
-      }
-      break;
-     
-    default: 
+				executeCmd(inputString, true);
+				Serial.print('>'); //Currsor for new command
+
+				// clear the command string
+				inputString = "";
+				stringComplete = false;
+
+			} break;
     
-    // PC controlled program
+  	  }
 
-      if (stringComplete) {
+  	  if (millis()-startInterval > pauseTimeOut) off();
 
-        //Restart timeout interval to turn off. 
-        startInterval=millis();       
-        
-        executeCmd(inputString, true);
-        Serial.print('>'); //Currsor for new command
-
-        // clear the command string
-        inputString = "";
-        stringComplete = false;  
-      } 
-    
-    break; 
-    
-  } 
-  if (millis()-startInterval > pauseTimeOut) off();
 } 
 
 
@@ -355,9 +319,9 @@ String formatLine(int adr, String line){
 }
 
 int executeCmd(String cmdLine, boolean directMode){
-  // Main interpreter function
-  //digitalWrite(powerPin, HIGH);
-  getParams(cmdLine);
+// Main interpreter function
+
+	getParams(cmdLine);
 
 
     if ( param[0]=="mem" ) { 
@@ -368,7 +332,7 @@ int executeCmd(String cmdLine, boolean directMode){
 
         
     } else if ( param[0]=="ls" ) {
- //List therapy
+//List therapy
     	ls();
 
     
@@ -421,10 +385,15 @@ int executeCmd(String cmdLine, boolean directMode){
       // Remove, clear therapy - high speed
 
     	EEPROM.put(0, '@');
-      //for(int i=0; i<PROGRAM_SIZE; i++){
-        //EEPROM.put(i, 255);
-        //if (!(i % 128)) Serial.print(".");
-      //}
+
+//TODO permanent clear memory
+/*
+        for(int i=0; i<PROGRAM_SIZE; i++){
+        	EEPROM.put(i, 255);
+        	if (!(i % 128)) Serial.print(".");
+      	}
+
+*/
       Serial.println("OK");
 
     } else if (param[0]=="print"){
@@ -443,12 +412,8 @@ int executeCmd(String cmdLine, boolean directMode){
         Serial.println(bat());
 
     } else if (param[0]=="cbat"){
-// Calibrate battery voltage
-    	//do nothing
-        //Correction factor
-        //byte i = 100 * param[1].toInt()/(int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
-       
-        //EEPROM.put(EEPROM_BATTERY_CALIBRATION_ADDRESS, i);
+// Calibrate battery voltage - deprecated
+
         Serial.println("OK");
    
     } else if (param[0]=="hr"){
@@ -489,10 +454,49 @@ int executeCmd(String cmdLine, boolean directMode){
 // Generate rectangle signal - rec [freq] [time_sec]
       
     	if (param[1]!="" ) {
+    		//Deprecated way of using this command
     		freq(param[1].toInt(), param[2].toInt());
     	}
     	Serial.println("OK");
 
+    } else if (param[0]=="sin"){
+// Generate sinusoidal signal - not supported
+
+    	Serial.println("OK");
+
+    } else if (param[0]=="out"){
+// Generate sinusoidal signal - not supported
+    	switch (param[1].charAt(0)) {
+    		case '1':
+    	    	coilState = HIGH;
+    	    	Serial.println("OK");
+    	    break;
+
+    		case '0':
+    	    	coilState = LOW;
+    	    	Serial.println("OK");
+    	    break;
+
+    		case '~':
+    			if (coilState == HIGH){
+    				coilState=LOW;
+    			} else {
+    				coilState=HIGH;
+    			}
+
+	    	break;
+
+    		default:
+
+				Serial.print("Error: wrong out parameter: ");
+	    		Serial.println(param[1]);
+	    	break;
+
+
+
+    	}
+
+    	digitalWrite(coilPin, coilState);
 
     } else if (param[0]=="freq"){
 // Generate rectangle signal - freq [freq] [time_sec]
@@ -512,12 +516,29 @@ int executeCmd(String cmdLine, boolean directMode){
 
       //void scan(unsigned int freq, unsigned long period){
 
+    } else if (param[0]=="restart"){
+// User program restart
+
+    	adr=0;
+    	Serial.println("OK");
+    	exe(adr,0);
+
+
+
     } else if (param[0]=="exe"){
       // Execute EEPROM program only in direct mode
-      if ( directMode) { 
-        exe();
+      //if ( directMode) {
+    	b = param[1].toInt();
+
+      if (b<4){
+
+    	exe(adr, b);
+
       } else {
-        Serial.println("Error: can't execute program from EEPROM program!");
+
+        Serial.print("Error: can't execute program: ");
+        Serial.println(b);
+
       }
       //param[0]="";
 
@@ -533,7 +554,7 @@ void rm(){
 // Remove, clear script therapy from memory
 	EEPROM.put(0, '@');
 
-	// Full version
+// Full version
 //	for(int i=0; i<PROGRAM_SIZE; i++){
 //		EEPROM.put(i, 255);
 		//if (!(i % 128)) Serial.print(".");
@@ -638,25 +659,62 @@ int readLabelPointers(int prog){
 
 	return 0;
 }
-void exe(){
-	//Execute program
-	readLabelPointers(0);
-	//int adr=0;
-	String line;
-  		while (int endLine = readEepromLine(adr,line)){
-  			adr = adr + endLine;
+void exe(int &adr, int prog){
+//Execute program
 
-  			Serial.print("Exe: ");
+	String line;
+	int endLine;
+
+
+	//First time of internal and user program init.
+	if (!adr && (prog>0) ){
+
+		//Internal flash programs table
+		adr = readLabelPointers(prog);
+
+	} else if (!adr) {
+
+		//User program label table initialization
+		readLabelPointers(0);
+	}
+
+
+	do {
+
+		// Read program line
+		if (prog>0){
+
+			//EEPROM memory
+			endLine = readFlashLine(adr,line);
+
+		} else {
+
+			//Flash memory
+			endLine = readEepromLine(adr,line);
+
+		}
+
+
+		adr = adr + endLine;
+
+
+  		//while (endLine = readEepromLine(adr,line))
+		if (endLine){
+
+  			//Serial.print("$");
   			Serial.print(line);
 
   			executeCmd(line);
-  			//adr = adr + endLine;
 
-  		}
+		}
+
+  	} while (endLine);
        
   		Serial.println("Script done.");
   		Serial.println("OK");
+  		adr=0;
 }
+
 
 int jump(int labelNumber, int &adr){
 
@@ -754,6 +812,8 @@ void ls(){
 	}
 
 }
+
+
 
 
 void freq(unsigned int freq, unsigned long period) {
@@ -861,17 +921,14 @@ void chp(byte outputDir){
 }
 
 int bat() {
-  // Get battery voltage function
-  
-  return (  analogRead(batPin) *
-            BATTERY_VOLTAGE_RATIO *
-            (byte)EEPROM.read(EEPROM_BATTERY_CALIBRATION_ADDRESS) /
-            100
-          );  
+// Get battery voltage function
+
+  return ( analogRead(batPin) * BATTERY_VOLTAGE_RATIO / 100 );
+
 }
 
 void wait( unsigned long period) {
-  // wait [period_ms]
+// wait [period_ms]
 
   unsigned long serialStartPeriod = millis();
   unsigned long startInterval = millis();    
@@ -917,6 +974,7 @@ void beep( unsigned int period) {
 
 void checkBattLevel() {
   //Check battery level
+#ifndef NO_CHECK_BATTERY
 
   if ( analogRead(batPin) < minBatteryLevel) { 
     //Emergency turn off 
@@ -943,6 +1001,7 @@ void checkBattLevel() {
     beep(500);
     off();
   }
+#endif
 
 }
 

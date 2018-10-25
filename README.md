@@ -5,19 +5,13 @@ Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default
 
 
 # TODO:
-* restart
-* sin
 * pwm
-* vmin
-* out
 * pin3
 * scan
 * hrm
 * chrm
-* jump label min max
 * njump
 * jump3
-* reading standard script therapy from flash memory
 
 # DONE
 * freq
@@ -25,3 +19,7 @@ Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default
 * rec noparametres
 * :1-9 loops_count
 * jump
+* sin
+* reading standard script therapy from flash memory
+* out
+* restart
