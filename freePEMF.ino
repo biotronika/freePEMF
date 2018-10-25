@@ -1,5 +1,5 @@
-/* mini-freePEMF
- * is one ino file of freePEMF firmware.
+/*
+ * One ino file of freePEMF firmware.
  *
  * Chris Czoba (c) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl (for Polish)
