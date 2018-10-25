@@ -166,7 +166,7 @@ void setup() {
 
   
 	//Define minimum battery level uses in working for performance purpose.
-	minBatteryLevel /*0-1023*/= 100 * (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
+	minBatteryLevel /*0-1023*/= (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
 
                                 
  if (programNo) { 
@@ -228,7 +228,7 @@ void loop() {
     	case 1:
     	//Check if user program is load in EEPROM memory
 
-		  if ((byte)EEPROM.read(0)!=255 && (byte)EEPROM.read(0)!=0) {
+		  if ((byte)EEPROM.read(0)!=255 && (byte)EEPROM.read(0)!=0 && (byte)EEPROM.read(0)!='@') {
 
 			  //User program execute
 			  executeCmd("exe\n",true);
@@ -923,7 +923,7 @@ void chp(byte outputDir){
 int bat() {
 // Get battery voltage function
 
-  return ( analogRead(batPin) * BATTERY_VOLTAGE_RATIO /*/ 100*/ );
+  return ( analogRead(batPin) * BATTERY_VOLTAGE_RATIO );
 
 }
 
