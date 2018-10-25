@@ -9,12 +9,12 @@
 #define SERIAL_DEBUG
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-24"
+#define SOFT_VER "2018-10-25"
 
 #include <EEPROM.h>
 //TODO1
 #include "freePEMF_prog.h"
-//#include <stdio.h>
+#include <stdio.h>
 
 //Pin definition
 #define coilPin 5      // Coil driver IRF540
@@ -27,7 +27,7 @@
 #define hrmPin 2       // Biofeedback HR meter on 3th plug pin.
 
 //Battery staff
-#define batPin A7                               // Analog-in battery level 
+#define batPin PIN_A7                               // Analog-in battery level
 #define BATTERY_VOLTAGE_RATIO 0.153             // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
 #define EEPROM_BATTERY_CALIBRATION_ADDRESS 1023 // Memory address of battery correction factor - 100 means RATIO x 1,00
 #define MIN_BATTERY_LEVEL 90                    // 90 means 9.0 V  (x10), less then that turn off

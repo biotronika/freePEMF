@@ -1,11 +1,10 @@
 # mini-freePEMF
-One Arduino ino file, with frequency up to 50Hz.
+One Arduino ino file, with frequency up to 50Hz...
 
 Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
 
 
 # TODO:
-
 * restart
 * sin
 * pwm
@@ -13,15 +12,16 @@ Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default
 * out
 * pin3
 * scan
-* :1-9 loops_count
-* jump
 * hrm
 * chrm
 * jump label min max
 * njump
 * jump3
+* reading standard script therapy from flash memory
 
 # DONE
 * freq
 * ls -n
 * rec noparametres
+* :1-9 loops_count
+* jump
