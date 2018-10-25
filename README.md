@@ -1,6 +1,6 @@
-# mini-freePEMF
+# freePEMF
 One Arduino ino file for beginners. Full functional software for freePEMF device. 
-See: [http://biotronics.eu](https://biotronika.pl/en/)
+See: [http://biotronics.eu](https://biotronika.pl/en/) or https:biotronika.pl (for Polish)
 
 Support frequency at least up to 50Hz.
 
