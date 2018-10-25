@@ -923,7 +923,7 @@ void chp(byte outputDir){
 int bat() {
 // Get battery voltage function
 
-  return ( analogRead(batPin) * BATTERY_VOLTAGE_RATIO / 100 );
+  return ( analogRead(batPin) * BATTERY_VOLTAGE_RATIO /*/ 100*/ );
 
 }
 
