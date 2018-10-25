@@ -8,7 +8,7 @@ Support frequency at least up to 50Hz.
 Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
 
 ### To compile code and upload using Arduino IDE:
-1. Download freePEMF file and put it into freePEMF folder (it must has exactly that name). 
+1. Download freePEMF.ino file and put it into freePEMF folder (it must has exactly that name). 
 2. Open freePEMF.ino file in Arduino IDE.
 6. Check if you have Wire & EEPROM libraries already installed (Sketch->Include Library-> see on list: Wire and EEPROM).
 7. Configure board (Tools->Board->Arduino Nano)  (Tools->Processor->ATmega328).
