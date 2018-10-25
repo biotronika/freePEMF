@@ -5,6 +5,7 @@ See: [http://biotronics.eu](https://biotronika.pl/en/) or https://biotronika.pl 
 Support frequency at least up to 50Hz.
 
 Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
+or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf) for Polish
 
 ### To compile code and upload using Arduino IDE:
 1. Download freePEMF.ino file and put it into freePEMF folder (it must has exactly that name). 
