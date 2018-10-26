@@ -29,6 +29,7 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 * chrm
 * njump
 * jump3
+* remove wait microseconds
 
 ### DONE
 * freq

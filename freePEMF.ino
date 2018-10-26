@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-25"
+#define SOFT_VER "2018-10-26"
 
 #include <EEPROM.h>
 
