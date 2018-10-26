@@ -7,6 +7,12 @@ Support frequency at least up to 50Hz.
 Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
 or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf) for Polish
 
+#### TODO in the reference manual:
+1. rec [czestotliwosc]... translate to English
+2. freq remove microsecounds option time
+3. jump add the information about midle jump time
+4. Add an example about generating a comlex signal - implant?
+
 ### To compile code and upload using Arduino IDE:
 1. Download freePEMF.ino file and put it into freePEMF folder (it must has exactly that name). 
 2. Open freePEMF.ino file in Arduino IDE.
@@ -18,7 +24,6 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 
 ### TODO:
 * pwm
-* pin3
 * scan
 * hrm
 * chrm
@@ -35,3 +40,4 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 * reading standard script therapy from flash memory
 * out
 * restart
+* pin3

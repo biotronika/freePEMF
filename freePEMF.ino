@@ -74,6 +74,7 @@ const unsigned long pauseTimeOut = 600000UL;                            // 60000
 const unsigned int btnTimeOut = 5000UL;                                 // Choose therapy program time out. Counted form released button.
 boolean outputDir = false;
 byte coilState = LOW;
+byte pin3State = LOW;
 unsigned long pauseTime =0; 
  
 volatile boolean pause = false; // true = pause on
@@ -82,8 +83,6 @@ unsigned long startInterval;    // For unused timeout off.
 byte programNo = 1;             // 0 = PC connection, 1= first program etc.
 byte hr = 0;                    // User pulse from hrmPin
 
-//Serial buffer
-//char *memBuffer; 
 char memBuffer[PROGRAM_BUFFER];
 
 //function prototypes
@@ -98,7 +97,7 @@ void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
  int jump(int labelNumber, int &adr);
 void off();
 void beep( unsigned int period);
-//void freq(unsigned long Freq, unsigned int period);
+void freq(unsigned int Freq, long period);
  int bat();
 void wait( unsigned long period);
 void exe(int &adr, int prog=0);
@@ -206,7 +205,7 @@ void setup() {
     digitalWrite(powerPin, HIGH);
      
     Serial.println(WELCOME_SCR);
-    Serial.print("Device free-PEMF ");
+    Serial.print("Device freePEMF ");
     Serial.print(HRDW_VER);
     Serial.print(" ");
     Serial.println(SOFT_VER);
@@ -228,42 +227,44 @@ void loop() {
     	case 1:
     	//Check if user program is load in EEPROM memory
 
-		  if ((byte)EEPROM.read(0)!=255 && (byte)EEPROM.read(0)!=0 && (byte)EEPROM.read(0)!='@') {
+    		if ((byte)EEPROM.read(0)!=255 && (byte)EEPROM.read(0)!=0 && (byte)EEPROM.read(0)!='@') {
+    			//User program execute
+    			executeCmd("exe\n",true);
+    			off();
 
-			  //User program execute
-			  executeCmd("exe\n",true);
-			  off();
+    		} else {
 
-		  } else {
+			  	//Standard program execute
+			  	executeCmd("exe 1\n",true);
 
-			  //Standard program execute
-			  executeCmd("exe 1\n",true);
-
-		  } break;
+    		} break;
       
 		case 2:
 
-			//Earth regeneration
-		  	executeCmd("exe 2\n",true);
+				//Earth regeneration
+		  		executeCmd("exe 2\n",true);
 
-		  break;
+		  	break;
 
 		case 3:
 
-			// Antistress & meditation
-			executeCmd("exe 3\n",true);
+				// Antistress & meditation
+				executeCmd("exe 3\n",true);
 
-		  break;
+			break;
 
 		case 4:
+		//ON-OFF coil by pressing the button
 
 			digitalWrite(redPin, LOW);
 			while(1) {
 				checkBattLevel(); //If too low then off
 
 				if (digitalRead(btnPin)) {
+
 					startInterval = millis();
 					beep(100);
+
 					while(digitalRead(btnPin));
 
 						if ((millis()-startInterval) > btnTimeOut ) {
@@ -284,15 +285,15 @@ void loop() {
 			} break;
 
 		default:
-    
-			// PC controlled program
+    	// PC controlled program
+
 			if (stringComplete) {
 
 				//Restart timeout interval to turn off.
 				startInterval=millis();
 
 				executeCmd(inputString, true);
-				Serial.print('>'); //Currsor for new command
+				Serial.print('>'); //Cursor for new command
 
 				// clear the command string
 				inputString = "";
@@ -302,6 +303,7 @@ void loop() {
     
   	  }
 
+  	  //Turn of if pause time is too long (longer then timeout)
   	  if (millis()-startInterval > pauseTimeOut) off();
 
 } 
@@ -465,7 +467,7 @@ int executeCmd(String cmdLine, boolean directMode){
     	Serial.println("OK");
 
     } else if (param[0]=="out"){
-// Generate sinusoidal signal - not supported
+// On-off coil
     	switch (param[1].charAt(0)) {
     		case '1':
     	    	coilState = HIGH;
@@ -497,6 +499,44 @@ int executeCmd(String cmdLine, boolean directMode){
     	}
 
     	digitalWrite(coilPin, coilState);
+
+    } else if (param[0]=="pin3"){
+// On-off pin3
+
+    	pinMode(hrmPin, OUTPUT); //pin3 output mode
+
+    	switch (param[1].charAt(0)) {
+    		case '1':
+    			pin3State = HIGH;
+    	    	Serial.println("OK");
+    	    break;
+
+    		case '0':
+    			pin3State = LOW;
+    	    	Serial.println("OK");
+    	    break;
+
+    		case '~':
+    			if (pin3State == HIGH){
+    				pin3State=LOW;
+    			} else {
+    				pin3State=HIGH;
+    			}
+
+	    	break;
+
+    		default:
+
+				Serial.print("Error: wrong pin3 parameter: ");
+	    		Serial.println(param[1]);
+	    	break;
+
+
+
+    	}
+
+    	digitalWrite(hrmPin, pin3State);
+    	digitalWrite(redPin, pin3State);
 
     } else if (param[0]=="freq"){
 // Generate rectangle signal - freq [freq] [time_sec]
@@ -813,16 +853,97 @@ void ls(){
 
 }
 
+/*
+
+void freq(unsigned int freq, long period) {
+  //Square signal generate, freq=783 for 7.83Hz, period in seconds or milliseconds (negative)
+
+  lastFreq =constrain( freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function purpose
+
+  unsigned long interval = 50000/constrain(freq, MIN_FREQ_OUT, MAX_FREQ_OUT);
+  unsigned long timeUp = millis() + (period*1000);
+
+  unsigned long serialStartPeriod = millis();
+  unsigned long startInterval = millis();
+  unsigned long pausePressed;
+
+  while(millis()< timeUp) {
+      //time loop
+
+      if ((millis() - startInterval) >= interval) {
+
+        //Save start time interval
+        startInterval = millis();
+
+        if (coilState == LOW) {
+          coilState = HIGH;
+        } else {
+          coilState = LOW;
+        }
+
+        digitalWrite(coilPin, coilState);   // turn coil on/off
+        digitalWrite(greenPin, coilState);   // turn LED on/off
+      }
+
+      checkBattLevel(); //If too low then off
+
+      //TODO serial break command - mark @
+
+      if (pause) {
+        //Pause - button pressed
+
+          pausePressed = millis();
+          beep(200);
+          digitalWrite(coilPin, LOW);     // turn coil off
+          digitalWrite(greenPin, HIGH);   // turn LED on
+
+          while (pause){
+            //wait pauseTimeOut or button pressed
+            if (millis()> pausePressed + pauseTimeOut) {
+               beep(500);
+               off();
+            }
+          }
+          beep(200);
+
+          //Correct working time
+          timeUp += millis()-pausePressed;
+          startInterval += millis()-pausePressed;
 
 
+          //Continue
+          digitalWrite(coilPin, coilState);    // turn coil on
+          digitalWrite(greenPin, coilState);   // turn LED on/
+      }
 
-void freq(unsigned int freq, unsigned long period) {
-  //Rectangle signal generate, freq=783 for 7.83Hz, period in seconds
+
+      //count each second
+      if (millis()-serialStartPeriod >= 1000) { //one second
+        Serial.print('.');
+        serialStartPeriod = millis();
+      }
+  }
+  digitalWrite(coilPin, LOW);     // turn coil off
+  digitalWrite(greenPin, HIGH);   // turn LED on
+
+}
+ */
+
+
+void freq(unsigned int freq, long period) {
+  //Square signal generate, freq=783 for 7.83Hz, period in seconds or milliseconds (negative)
 
   lastFreq =constrain( freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function purpose
   
   unsigned long interval = 50000/constrain(freq, MIN_FREQ_OUT, MAX_FREQ_OUT);   
-  unsigned long timeUp = millis() + (period*1000);
+
+  unsigned long timeUp;
+
+  if (period>0) {
+	  timeUp = millis() + (period*1000);
+  } else {
+	  timeUp = millis() + (-period);
+  }
 
   unsigned long serialStartPeriod = millis();
   unsigned long startInterval = millis();
