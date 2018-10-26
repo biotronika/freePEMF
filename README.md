@@ -8,10 +8,10 @@ Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default
 or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf) for Polish
 
 #### TODO in the reference manual:
-1. rec [czestotliwosc]... translate to English
-2. freq remove microsecounds option time
-3. jump add the information about midle jump time
-4. Add an example about generating a comlex signal - implant?
+1.	rec [czestotliwosc]... translate to English
+2.	freq remove microseconds option time
+3.	jump add the information about middle jump time
+4.	Add an example about generating a complex signal - implant?
 
 ### To compile code and upload using Arduino IDE:
 1. Download freePEMF.ino file and put it into freePEMF folder (it must has exactly that name). 
