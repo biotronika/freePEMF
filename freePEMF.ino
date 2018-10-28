@@ -951,6 +951,7 @@ void xfreq(unsigned long _freq, long period, byte pwm)
 		for( l=0 ; l < period; l++ ) {
 			_delay_ms(1000);
 			Serial.print('.');
+			//TODO battery level check
 		}
 
 	} else {
