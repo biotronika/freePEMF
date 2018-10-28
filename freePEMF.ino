@@ -918,7 +918,7 @@ void xfreq(unsigned long _freq, long period, byte pwm)
     	prescaler = 64;
     	TCCR0B = (1 << WGM02)  | (0 << CS02)   | (1 << CS01)   | (1 << CS00);
 
-    } else if (lastFreq<=1600000){
+    } else {
 
     	prescaler = 8;
     	TCCR0B = (1 << WGM02)  | (0 << CS02)   | (1 << CS01)   | (0 << CS00);
@@ -952,6 +952,7 @@ void xfreq(unsigned long _freq, long period, byte pwm)
 			_delay_ms(1000);
 			Serial.print('.');
 			//TODO battery level check
+			//TODO green led flashing every one second
 		}
 
 	} else {
