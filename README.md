@@ -2,16 +2,16 @@
 One Arduino ino file for beginners. Full functional software for freePEMF device. 
 See: [http://biotronics.eu](https://biotronika.pl/en/) or https://biotronika.pl (for Polish)
 
-Support frequency at least up to 50Hz.
+Support frequency up to 16kHz
 
 Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
 or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf) for Polish
 
-#### TODO in the reference manual:
+#### TODO in the bioZAP 2018-10-21 reference manual:
 1.	rec [czestotliwosc]... translate to English
-2.	freq remove microseconds option time
-3.	jump add the information about middle jump time
-4.	Add an example about generating a complex signal - implant?
+2.	freq remove microseconds option time (no sense)
+3.	jump add the information about middle jump time ~6ms
+4.	Add an example about generating a complex signal - Bone growth Ti dental implant
 
 ### To compile code and upload using Arduino IDE:
 1. Download freePEMF.ino file and put it into freePEMF folder (it must has exactly that name). 
@@ -42,4 +42,5 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 * restart
 * pin3
 * pwm
+* xfreq 61Hz - 16kHz
 

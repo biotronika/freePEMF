@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-27 2"
+#define SOFT_VER "2018-10-28"
 
 #include <EEPROM.h>
 
@@ -883,117 +883,6 @@ void ls(){
 }
 
 
-/*
-void freq(unsigned int _freq, long period, byte pwm) {
-  //Square signal generate, freq=783 for 7.83Hz, period in seconds or milliseconds (negative)
-
-  lastFreq =constrain( _freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function purpose
-
-  unsigned long interval = 50000/constrain(_freq, MIN_FREQ_OUT, MAX_FREQ_OUT);
-  unsigned long timeUp = millis() + (period*1000);
-
-  unsigned long serialStartPeriod = millis();
-  unsigned long startInterval = millis();
-  unsigned long pausePressed;
-
-  while(millis()< timeUp) {
-      //time loop
-
-      if ((millis() - startInterval) >= interval) {
-
-        //Save start time interval
-        startInterval = millis();
-
-        if (coilState == LOW) {
-          coilState = HIGH;
-        } else {
-          coilState = LOW;
-        }
-
-        digitalWrite(coilPin, coilState);   // turn coil on/off
-        digitalWrite(greenPin, coilState);   // turn LED on/off
-      }
-
-      checkBattLevel(); //If too low then off
-
-      //TODO serial break command - mark @
-
-      if (pause) {
-        //Pause - button pressed
-
-          pausePressed = millis();
-          beep(200);
-          digitalWrite(coilPin, LOW);     // turn coil off
-          digitalWrite(greenPin, HIGH);   // turn LED on
-
-          while (pause){
-            //wait pauseTimeOut or button pressed
-            if (millis()> pausePressed + pauseTimeOut) {
-               beep(500);
-               off();
-            }
-          }
-          beep(200);
-
-          //Correct working time
-          timeUp += millis()-pausePressed;
-          startInterval += millis()-pausePressed;
-
-
-          //Continue
-          digitalWrite(coilPin, coilState);    // turn coil on
-          digitalWrite(greenPin, coilState);   // turn LED on/
-      }
-
-
-      //count each second
-      if (millis()-serialStartPeriod >= 1000) { //one second
-        Serial.print('.');
-        serialStartPeriod = millis();
-      }
-  }
-  digitalWrite(coilPin, LOW);     // turn coil off
-  digitalWrite(greenPin, HIGH);   // turn LED on
-
-}
-*/
-//#include <avr/io.h>
-void zfreq(unsigned long _freq, long period, byte pwm)
-
-{
-	DDRD |= (1 << DDD5); //Already is set
-    //DDRD |= (1 << DDD6);
-    //PD6 is now an output
-
-	// set PWM for pwm duty cycle
-    //OCR0B = 128; //pwm * 255/100;
-    OCR0B = pwm * 255/100;
-    //OCR0A = 128;
-
-
-    TCCR0A |= (1 << COM0B1);
-    //TCCR0A |= (1 << COM0A1);
-    // set none-inverting mode
-
-    // set timer mode Fast PWM
-    TCCR0A |= (1 << WGM01) | (1 << WGM00); // Fast PWM with TOP=MAX
-    // set fast PWM Mode
-
-    // set prescaler to 8 and starts PWM
-    TCCR0B |= (1 << CS01);
-
-    // set prescaller
-    //TCCR0B |= (1<<CS01) | (1<<CS00);        // 64
-
-    wait (period*1000);
-
-    // reset timer settings
-    TCCR0A = 0;
-    TCCR0B = 0;
-
-}
-
-
 
 //Experimental version of freq function generating more then 50Hz signal on pin PD5 (OC0B)
 void xfreq(unsigned long _freq, long period, byte pwm)
@@ -1002,17 +891,6 @@ void xfreq(unsigned long _freq, long period, byte pwm)
 	uint16_t prescaler = 1;
 	unsigned long l;
 
-#ifdef SERIAL_DEBUG
-			Serial.println("xfreq1->registers: ");
-			Serial.print("TCCR0A: ");
-			Serial.println(TCCR0A, BIN);
-			Serial.print("TCCR0B: ");
-			Serial.println(TCCR0B, BIN);
-			Serial.print("OCR0A : ");
-			Serial.println(OCR0A , BIN);
-			Serial.print("OCR0B : ");
-			Serial.println(OCR0B , BIN);
-#endif
 
 	//xfreq supports 61Hz - 16kHz
 	lastFreq =constrain( _freq, 6100, 1600000) ;
@@ -1070,7 +948,10 @@ void xfreq(unsigned long _freq, long period, byte pwm)
 	if (period >= 0) {
 
 		//time in seconds;
-		for( l=0 ; l < period; l++ ) _delay_ms(1000);
+		for( l=0 ; l < period; l++ ) {
+			_delay_ms(1000);
+			Serial.print('.');
+		}
 
 	} else {
 
