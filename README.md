@@ -23,7 +23,6 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 10. Compile and upload. Sketch->Upload. Wait until on down side of Arduino IDE window see **Done uploading**.
 
 ### TODO:
-* pwm
 * scan
 * hrm
 * chrm
@@ -42,3 +41,5 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 * out
 * restart
 * pin3
+* pwm
+

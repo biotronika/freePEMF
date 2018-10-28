@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-26"
+#define SOFT_VER "2018-10-27 2"
 
 #include <EEPROM.h>
 
@@ -40,7 +40,7 @@
 #define MAX_CMD_PARAMS 4    // Count of command parameters
 #define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
 #define MIN_FREQ_OUT 1      //  0.01 Hz
-#define MAX_FREQ_OUT 5000   // 50.00 Hz
+#define MAX_FREQ_OUT 6100   // 61.00 Hz
 #define SCAN_STEPS 20       // For scan function purpose - default steps
 #define MAX_LABELS 9        // jump labels maximum
 
@@ -56,6 +56,7 @@ String param[MAX_CMD_PARAMS];           // param[0] = cmd name
 boolean stringComplete = false;         // whether the string is complete
 boolean memComplete = false;
 unsigned long lastFreq = MIN_FREQ_OUT;  // Uses scan function
+byte pwm = 50;							// Duty cycle of pulse width modulation: 1-99 %
 int minBatteryLevel = 0; 
 boolean Xoff = false;
 byte b;
@@ -97,7 +98,7 @@ void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
  int jump(int labelNumber, int &adr);
 void off();
 void beep( unsigned int period);
-void freq(unsigned int Freq, long period);
+void freq(unsigned long _freq, long period, byte pwm = 50);
  int bat();
 void wait( unsigned long period);
 void exe(int &adr, int prog=0);
@@ -340,13 +341,14 @@ int executeCmd(String cmdLine, boolean directMode){
     
     } else if (param[0].charAt(0)=='#') {
 // Comment
-      
       ;
+
 
     } else if (param[0]==""){
 // Emptyline
       
       ;
+
 
     } else if (param[0].charAt(0)==':') {
 // Label - setup for new label jump counter
@@ -358,7 +360,7 @@ int executeCmd(String cmdLine, boolean directMode){
     			}
 
 #ifdef SERIAL_DEBUG
-        Serial.print("label: ");
+        Serial.print("label->labelno: ");
         Serial.print(b);
         Serial.print(" ");
         Serial.println(labelLoops[b]);
@@ -368,15 +370,16 @@ int executeCmd(String cmdLine, boolean directMode){
     		}
     	}
 
+
     } else if (param[0]=="jump"){
 // Jump [label number]
 
     	 if (  jump(param[1].toInt(), adr)  )  {
 
     	#ifdef SERIAL_DEBUG
-    	        Serial.print("jump0: ");
+    	        Serial.print("jump->label: ");
     	        Serial.println(param[1].toInt());
-    	        Serial.print("jump0 adr: ");
+    	        Serial.print("jump->address: ");
     	        Serial.println(adr);
     	#endif
     	   	    	return adr;
@@ -398,6 +401,7 @@ int executeCmd(String cmdLine, boolean directMode){
 */
       Serial.println("OK");
 
+
     } else if (param[0]=="print"){
 // Print command
       
@@ -407,21 +411,25 @@ int executeCmd(String cmdLine, boolean directMode){
         Serial.println();
       }
       
+
     } else if (param[0]=="bat"){
 // Print baterry voltage
     	Serial.println( int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
         //Serial.println( int(analogRead(batPin)*BATTERY_VOLTAGE_RATIO));
         Serial.println(bat());
 
+
     } else if (param[0]=="cbat"){
 // Calibrate battery voltage - deprecated
 
         Serial.println("OK");
    
+
     } else if (param[0]=="hr"){
 // Print heart rate
       
         Serial.println(hr);
+
 
     } else if (param[0]=="beep"){
 // Beep [time_ms]
@@ -429,10 +437,12 @@ int executeCmd(String cmdLine, boolean directMode){
         beep(param[1].toInt());
         Serial.println("OK");
 
+
     } else if (param[0]=="off"){
 // Turn off 
 
       off();
+
 
     } else if (param[0]=="chp"){
 // Change output signal polarity
@@ -440,6 +450,7 @@ int executeCmd(String cmdLine, boolean directMode){
       //chp(byte(param[1].toInt()));
       chp(byte(param[1].toInt()));
       Serial.println("OK");
+
 
     } else if (param[0]=="wait"){
 // Wait millis or micros (negative value)
@@ -461,10 +472,20 @@ int executeCmd(String cmdLine, boolean directMode){
     	}
     	Serial.println("OK");
 
+
     } else if (param[0]=="sin"){
 // Generate sinusoidal signal - not supported
 
     	Serial.println("OK");
+
+
+    } else if (param[0]=="pwm"){
+// Change pwm duty cycle
+
+    	pwm = constrain( param[1].toInt(), 1, 99) ;
+
+    	Serial.println("OK");
+
 
     } else if (param[0]=="out"){
 // On-off coil
@@ -493,12 +514,10 @@ int executeCmd(String cmdLine, boolean directMode){
 				Serial.print("Error: wrong out parameter: ");
 	    		Serial.println(param[1]);
 	    	break;
-
-
-
     	}
 
     	digitalWrite(coilPin, coilState);
+
 
     } else if (param[0]=="pin3"){
 // On-off pin3
@@ -531,21 +550,27 @@ int executeCmd(String cmdLine, boolean directMode){
 	    		Serial.println(param[1]);
 	    	break;
 
-
-
     	}
 
     	digitalWrite(hrmPin, pin3State);
     	digitalWrite(redPin, pin3State);
 
     } else if (param[0]=="freq"){
-// Generate rectangle signal - freq [freq] [time_sec]
+// Generate square signal - freq [freq] [time_sec]
 
-      freq(param[1].toInt(), param[2].toInt());
+      freq(param[1].toInt(), param[2].toInt(), pwm);
       Serial.println("OK");
 
+
+    } else if (param[0]=="xfreq"){
+// Generate square signal - freq [freq] [time_sec] more then 50Hz
+
+      xfreq(param[1].toInt(), param[2].toInt(), pwm);
+      Serial.println("OK");
+
+
     } else if (param[0]=="scan"){
-      // Scan from lastFreq  - scan [freq to] [time_ms] <steps>
+// Scan from lastFreq  - scan [freq to] [time_ms] <steps>
       
     	if (param[3]==""){
     		scan(param[1].toInt(), param[2].toInt());
@@ -556,6 +581,7 @@ int executeCmd(String cmdLine, boolean directMode){
 
       //void scan(unsigned int freq, unsigned long period){
 
+
     } else if (param[0]=="restart"){
 // User program restart
 
@@ -564,9 +590,8 @@ int executeCmd(String cmdLine, boolean directMode){
     	exe(adr,0);
 
 
-
     } else if (param[0]=="exe"){
-      // Execute EEPROM program only in direct mode
+// Execute EEPROM program only in direct mode
       //if ( directMode) {
     	b = param[1].toInt();
 
@@ -582,6 +607,7 @@ int executeCmd(String cmdLine, boolean directMode){
       }
       //param[0]="";
 
+
     }  else {
 //Unknown command
       Serial.println("Unknown command: "+param[0]);         
@@ -589,6 +615,9 @@ int executeCmd(String cmdLine, boolean directMode){
     
 return 0;
 }
+
+
+
 
 void rm(){
 // Remove, clear script therapy from memory
@@ -687,7 +716,7 @@ int readLabelPointers(int prog){
 
 #ifdef SERIAL_DEBUG
 	for (i=1; i<MAX_LABELS+1;i++){
-		Serial.print("Label: ");
+		Serial.print("readLabelPointers->label: ");
 		Serial.print(i);
 		Serial.print(" loops: ");
 		Serial.print(labelLoops[i]);
@@ -760,14 +789,14 @@ int jump(int labelNumber, int &adr){
 
 	if (labelNumber>0 && labelNumber<MAX_LABELS){
 #ifdef SERIAL_DEBUG
-			Serial.print("jump1 lblPtr: ");
+			Serial.print("jump->ptr: ");
 			Serial.println(labelPointer[labelNumber]);
 #endif
 
 		if (labelPointer[labelNumber]) {
 
 #ifdef SERIAL_DEBUG
-			Serial.print("jump2 lblLoops: ");
+			Serial.print("jump->loops: ");
 			Serial.println(labelLoops[labelNumber]);
 #endif
 
@@ -853,14 +882,14 @@ void ls(){
 
 }
 
-/*
 
-void freq(unsigned int freq, long period) {
+/*
+void freq(unsigned int _freq, long period, byte pwm) {
   //Square signal generate, freq=783 for 7.83Hz, period in seconds or milliseconds (negative)
 
-  lastFreq =constrain( freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function purpose
+  lastFreq =constrain( _freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function purpose
 
-  unsigned long interval = 50000/constrain(freq, MIN_FREQ_OUT, MAX_FREQ_OUT);
+  unsigned long interval = 50000/constrain(_freq, MIN_FREQ_OUT, MAX_FREQ_OUT);
   unsigned long timeUp = millis() + (period*1000);
 
   unsigned long serialStartPeriod = millis();
@@ -927,88 +956,259 @@ void freq(unsigned int freq, long period) {
   digitalWrite(greenPin, HIGH);   // turn LED on
 
 }
- */
+*/
+//#include <avr/io.h>
+void zfreq(unsigned long _freq, long period, byte pwm)
+
+{
+	DDRD |= (1 << DDD5); //Already is set
+    //DDRD |= (1 << DDD6);
+    //PD6 is now an output
+
+	// set PWM for pwm duty cycle
+    //OCR0B = 128; //pwm * 255/100;
+    OCR0B = pwm * 255/100;
+    //OCR0A = 128;
 
 
-void freq(unsigned int freq, long period) {
-  //Square signal generate, freq=783 for 7.83Hz, period in seconds or milliseconds (negative)
+    TCCR0A |= (1 << COM0B1);
+    //TCCR0A |= (1 << COM0A1);
+    // set none-inverting mode
 
-  lastFreq =constrain( freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ; //For scan() function purpose
-  
-  unsigned long interval = 50000/constrain(freq, MIN_FREQ_OUT, MAX_FREQ_OUT);   
+    // set timer mode Fast PWM
+    TCCR0A |= (1 << WGM01) | (1 << WGM00); // Fast PWM with TOP=MAX
+    // set fast PWM Mode
 
-  unsigned long timeUp;
+    // set prescaler to 8 and starts PWM
+    TCCR0B |= (1 << CS01);
 
-  if (period>0) {
-	  timeUp = millis() + (period*1000);
-  } else {
-	  timeUp = millis() + (-period);
-  }
+    // set prescaller
+    //TCCR0B |= (1<<CS01) | (1<<CS00);        // 64
 
-  unsigned long serialStartPeriod = millis();
-  unsigned long startInterval = millis();
-  unsigned long pausePressed;
+    wait (period*1000);
 
-  while(millis()< timeUp) {
-      //time loop
-      
-      if ((millis() - startInterval) >= interval) {
-
-        //Save start time interval 
-        startInterval = millis();
-        
-        if (coilState == LOW) {
-          coilState = HIGH;
-        } else {
-          coilState = LOW;
-        }
-        
-        digitalWrite(coilPin, coilState);   // turn coil on/off 
-        digitalWrite(greenPin, coilState);   // turn LED on/off
-      }
-
-      checkBattLevel(); //If too low then off
-
-      //TODO serial break command - mark @
-
-      if (pause) {
-        //Pause - button pressed
-          
-          pausePressed = millis();
-          beep(200);
-          digitalWrite(coilPin, LOW);     // turn coil off
-          digitalWrite(greenPin, HIGH);   // turn LED on
-
-          while (pause){
-            //wait pauseTimeOut or button pressed
-            if (millis()> pausePressed + pauseTimeOut) { 
-               beep(500); 
-               off();
-            } 
-          }
-          beep(200);
-          
-          //Correct working time
-          timeUp += millis()-pausePressed;
-          startInterval += millis()-pausePressed;
-
-
-          //Continue
-          digitalWrite(coilPin, coilState);    // turn coil on
-          digitalWrite(greenPin, coilState);   // turn LED on/      
-      }     
-      
-
-      //count each second
-      if (millis()-serialStartPeriod >= 1000) { //one second
-        Serial.print('.');
-        serialStartPeriod = millis();
-      }
-  }
-  digitalWrite(coilPin, LOW);     // turn coil off 
-  digitalWrite(greenPin, HIGH);   // turn LED on
+    // reset timer settings
+    TCCR0A = 0;
+    TCCR0B = 0;
 
 }
+
+
+
+//Experimental version of freq function generating more then 50Hz signal on pin PD5 (OC0B)
+void xfreq(unsigned long _freq, long period, byte pwm)
+{
+
+	uint16_t prescaler = 1;
+	unsigned long l;
+
+#ifdef SERIAL_DEBUG
+			Serial.println("xfreq1->registers: ");
+			Serial.print("TCCR0A: ");
+			Serial.println(TCCR0A, BIN);
+			Serial.print("TCCR0B: ");
+			Serial.println(TCCR0B, BIN);
+			Serial.print("OCR0A : ");
+			Serial.println(OCR0A , BIN);
+			Serial.print("OCR0B : ");
+			Serial.println(OCR0B , BIN);
+#endif
+
+	//xfreq supports 61Hz - 16kHz
+	lastFreq =constrain( _freq, 6100, 1600000) ;
+
+	//OC0B / PD5 / PIN5 / CoilPin as output
+    //DDRD |= (1 << DDD5); //Already is set
+
+	//Set mode 7 (Fast PWM - TOP OCRA, non-inverting mode)
+    TCCR0A = (0 << COM0A1) | (0 << COM0A0) | (1 << COM0B1) | (0 << COM0B0) | (1 << WGM01) | (1 << WGM00);
+
+
+    // Choose the best prescaler for frequency
+    if (lastFreq<24500) {
+
+    	prescaler = 1024;
+    	TCCR0B = (1 << WGM02)  | (1 << CS02)   | (0 << CS01)   | (1 << CS00);
+
+    } else if(lastFreq<98000){
+
+    	prescaler = 256;
+    	TCCR0B = (1 << WGM02)  | (1 << CS02)   | (0 << CS01)   | (0 << CS00);
+
+    } else if (lastFreq<784300) {
+
+    	prescaler = 64;
+    	TCCR0B = (1 << WGM02)  | (0 << CS02)   | (1 << CS01)   | (1 << CS00);
+
+    } else if (lastFreq<=1600000){
+
+    	prescaler = 8;
+    	TCCR0B = (1 << WGM02)  | (0 << CS02)   | (1 << CS01)   | (0 << CS00);
+
+    }
+
+
+    //Set the nearest applicable frequency
+    OCR0A = F_CPU /( prescaler * (lastFreq / 100));
+
+    //Set PWM duty cycle
+    OCR0B = pwm * OCR0A / 100;
+
+
+#ifdef SERIAL_DEBUG
+			Serial.println("xfreq->registers: ");
+			Serial.print("TCCR0A: ");
+			Serial.println(TCCR0A, BIN);
+			Serial.print("TCCR0B: ");
+			Serial.println(TCCR0B, BIN);
+			Serial.print("OCR0A : ");
+			Serial.println(OCR0A , BIN);
+			Serial.print("OCR0B : ");
+			Serial.println(OCR0B , BIN);
+#endif
+
+	if (period >= 0) {
+
+		//time in seconds;
+		for( l=0 ; l < period; l++ ) _delay_ms(1000);
+
+	} else {
+
+		//negative time in milliseconds
+		for( l=0 ; l < -period; l++ ) _delay_ms(1);
+
+
+	}
+
+
+    //Reset registers
+    TCCR0A = 3;
+    TCCR0B = 3;
+    OCR0A=0;
+    OCR0B=0;
+
+
+}
+
+
+void freq(unsigned long _freq, long period, byte pwm) {
+  //Square signal generate, freq=783 for 7.83Hz, period in seconds or milliseconds (negative)
+
+	//Remember last frequency for scan function
+	//lastFreq =constrain( _freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ;
+	lastFreq =_freq;
+
+	if (lastFreq==0) lastFreq=1;
+
+	if (lastFreq>6100) {
+
+		//Use experimental time-counter pwm generator
+		xfreq(lastFreq, period,pwm);
+
+	} else {
+  
+	
+		unsigned long upInterval = pwm*1000UL/lastFreq;
+		unsigned long downInterval = (100UL-pwm)*1000UL/lastFreq;
+
+
+		unsigned long timeUp;
+
+		if (period>0) {
+			//Seconds
+			timeUp = millis() + (period*1000);
+		} else {
+			//Milliseconds
+			timeUp = millis() + (-period);
+		}
+	
+#ifdef SERIAL_DEBUG
+		Serial.print("freq->upInterval: ");
+		Serial.println(upInterval);
+		Serial.print("freq->downInterval: ");
+		Serial.println(downInterval);
+#endif
+
+		unsigned long serialStartMillis = millis();
+		unsigned long startIntervalMillis = millis();
+		unsigned long pausePressedMillis;
+
+		coilState=HIGH;
+		digitalWrite(coilPin, coilState);   // turn coil off
+		digitalWrite(greenPin, coilState);   // turn LED off
+
+		while(millis()< timeUp) {
+		  //time loop
+
+			if (((millis() - startIntervalMillis) >= upInterval) && (coilState==HIGH)) {
+
+				//Save start time interval
+				startIntervalMillis = millis();
+
+				coilState=LOW;
+				digitalWrite(coilPin, coilState);   // turn coil off
+				digitalWrite(greenPin, coilState);   // turn LED off
+
+			}
+
+			if (((millis() - startIntervalMillis) >= downInterval) && (coilState==LOW)) {
+
+				//Save start time interval
+				startIntervalMillis = millis();
+
+				coilState=HIGH;
+				digitalWrite(coilPin, coilState);   // turn coil on
+				digitalWrite(greenPin, coilState);   // turn LED on
+
+			}
+
+
+			checkBattLevel(); //If too low then off
+
+			//TODO serial break command
+
+			if (pause) {
+			//Pause - button pressed
+
+				pausePressedMillis = millis();
+				beep(200);
+				digitalWrite(coilPin, LOW);     // turn coil off
+				digitalWrite(greenPin, HIGH);   // turn LED on
+
+				while (pause){
+				//wait pauseTimeOut or button pressed
+
+					if (millis()> pausePressedMillis + pauseTimeOut) {
+						beep(500);
+						off();
+					}
+
+				}
+				beep(200);
+
+				//Correct working time
+				timeUp += millis()-pausePressedMillis;
+				startIntervalMillis += millis()-pausePressedMillis;
+
+
+				//Continue
+				digitalWrite(coilPin, coilState);    // turn coil on
+				digitalWrite(greenPin, coilState);   // turn LED on/
+			}
+
+
+			//Count each second and print dot
+			if (millis()-serialStartMillis >= 1000) { //one second
+				Serial.print('.');
+				serialStartMillis = millis();
+			}
+		}
+		digitalWrite(coilPin, LOW);     // turn coil off
+		digitalWrite(greenPin, HIGH);   // turn LED on
+	}
+
+}
+
 
 void off() {
   // Power off function
@@ -1051,13 +1251,15 @@ int bat() {
 void wait( unsigned long period) {
 // wait [period_ms]
 
+//TODO : change to _delay_ms(1000)
+
   unsigned long serialStartPeriod = millis();
   unsigned long startInterval = millis();    
   
   while(millis()-startInterval <= period){
     //time loop
       
-    //TODO serial break command - mark @
+    //TODO serial break command
           
     //count each second
     if (millis()-serialStartPeriod >= 1000) {
@@ -1079,7 +1281,7 @@ void beep( unsigned int period) {
   while(millis()-startInterval <= period){
     //time loop
 
-    //TODO serial break command - mark @
+    //TODO serial break command
 
     //count each second
     if (millis()-serialStartPeriod >= 1000) { //one second
@@ -1201,10 +1403,10 @@ void getParams(String &inputString){
   int from =0;
   int to =0;
   for (int i=0; i<MAX_CMD_PARAMS; i++){
-    to = inputString.indexOf(' ',from); //Wykryj spacje
+    to = inputString.indexOf(' ',from); //Find SPACE
    
     if (to==-1) {
-      to = inputString.indexOf('\n',from); //Wykryj NL #10
+      to = inputString.indexOf('\n',from); //Find NL #10
       if (to>0) param[i] = inputString.substring(from,to);
       param[i].trim();
       break;
@@ -1244,23 +1446,6 @@ void serialEvent() {
 
 }
 
-/*
- void eepromUpload(int adr) {
-  unsigned int i = 0;
-  boolean flagCompleted = false;
-
-  while (!flagCompleted){
-    while (Serial.available()) {
-      char inChar = (char)Serial.read();
-      flagCompleted =( !(i<PROGRAM_SIZE) ) || (inChar=='@');
-      if (inChar==';') inChar='\n';   //Semicolon as end line LF (#10)
-      EEPROM.put(i, (byte)inChar);
-      i++;
-    }
-  }
-  if (i<PROGRAM_SIZE) EEPROM.put(i, 255); //End of shorter program then PROGRAM_SIZE size
-}
- */
 
 void eepromUpload(int adr) {
   unsigned int i = 0;
@@ -1440,7 +1625,7 @@ int readFlashLine(int fromAddress, String &lineString){
 	  lineString="";
 
 #ifdef SERIAL_DEBUG
-	  	//Serial.print("readFlashLine1 fromAddress: ");
+	  	//Serial.print("readFlashLine->fromAddress: ");
 		//Serial.println(fromAddress);
 #endif
 
@@ -1449,7 +1634,7 @@ int readFlashLine(int fromAddress, String &lineString){
 	    char eeChar = char( pgm_read_byte(&internalProgram[fromAddress+i])  )  ;
 
 #ifdef SERIAL_DEBUG
-	  	//Serial.print("readFlashLine2 eeChar: ");
+	  	//Serial.print("readFlashLine->eeChar: ");
 		//Serial.println(eeChar);
 #endif
 	    if ( eeChar==char('@') ) {
@@ -1465,7 +1650,7 @@ int readFlashLine(int fromAddress, String &lineString){
 	    if (eeChar=='\n') break;
 	  } while (1);
 #ifdef SERIAL_DEBUG
-	  	//Serial.print("readFlashLine3 i: ");
+	  	//Serial.print("readFlashLine->i: ");
 		//Serial.println(i);
 #endif
 	  return i;
