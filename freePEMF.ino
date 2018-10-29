@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-28"
+#define SOFT_VER "2018-10-29"
 
 #include <EEPROM.h>
 
@@ -884,12 +884,13 @@ void ls(){
 
 
 
-//Experimental version of freq function generating more then 50Hz signal on pin PD5 (OC0B)
+//Experimental version of freq function generating more then 60Hz signal on pin PD5 (OC0B)
 void xfreq(unsigned long _freq, long period, byte pwm)
 {
 
 	uint16_t prescaler = 1;
 	unsigned long l;
+	boolean flashLED = 1;
 
 
 	//xfreq supports 61Hz - 16kHz
@@ -948,17 +949,26 @@ void xfreq(unsigned long _freq, long period, byte pwm)
 	if (period >= 0) {
 
 		//time in seconds;
+
 		for( l=0 ; l < period; l++ ) {
 			_delay_ms(1000);
 			Serial.print('.');
 			//TODO battery level check
-			//TODO green led flashing every one second
+
+			//Green led flashing every one second
+			digitalWrite(greenPin, flashLED);
+			flashLED = !flashLED;
 		}
 
 	} else {
 
+		//Turn gree LED off for a while (milliseconds)
+		digitalWrite(greenPin, LOW);
+
 		//negative time in milliseconds
 		for( l=0 ; l < -period; l++ ) _delay_ms(1);
+
+
 
 
 	}
@@ -969,6 +979,7 @@ void xfreq(unsigned long _freq, long period, byte pwm)
     TCCR0B = 3;
     OCR0A=0;
     OCR0B=0;
+    digitalWrite(greenPin, HIGH);
 
 
 }
@@ -983,7 +994,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 	if (lastFreq==0) lastFreq=1;
 
-	if (lastFreq>6100) {
+	if (lastFreq>MAX_FREQ_OUT) {
 
 		//Use experimental time-counter pwm generator
 		xfreq(lastFreq, period,pwm);
