@@ -5,7 +5,7 @@ See: [http://biotronics.eu](https://biotronika.pl/en/) or https://biotronika.pl 
 Support frequency up to 16kHz (0.01-60.99Hz standard, 61Hz-16kHz experimental)
 
 Related document: [bioZAP 2018-10-21 EN.pdf](https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf)
-or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf) for Polish
+or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bioZAP%202018-04-09.pdf) for Polish :(a tittle out of date)
 
 
 ### To compile code and upload using Arduino IDE:
@@ -17,34 +17,16 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 9. Configure serial port. Plug USB cable to PC and freePEMF or Adruino Nano board. Then Tolls->Port->select right COM port.
 10. Compile and upload. Sketch->Upload. Wait until on down side of Arduino IDE window see **Done uploading**.
 
-#### TODO in the bioZAP 2018-10-21 reference manual:
-1.	rec [czestotliwosc]... translate to English
-2.	freq remove microseconds option time (no sense)
-3.	jump add the information about middle jump time ~6ms
-4.	Add an example about generating a complex signal - Bone growth Ti dental implant
+
+#### TODO in freePEMF user manual
+1. support for bluetooth interface and communication with PC & mobile phones
 
 #### TODO:
-* scan
+
 * hrm
 * chrm
-* njump
+* jump ... min max
+* njump ... min max
 * jump3
-* remove wait microseconds
-* pause btn xfreq
-
-
-#### DONE
-* freq
-* ls -n
-* rec noparametres
-* :1-9 loops_count
-* jump
-* sin
-* reading standard script therapy from flash memory
-* out
-* restart
-* pin3
-* pwm
-* xfreq 61Hz - 16kHz
-
+* support for bluetooth interface
 

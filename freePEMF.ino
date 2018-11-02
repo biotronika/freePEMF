@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-11-01"
+#define SOFT_VER "2018-11-02"
 
 #include <EEPROM.h>
 
@@ -40,7 +40,8 @@
 #define MAX_CMD_PARAMS 4    // Count of command parameters
 #define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
 #define MIN_FREQ_OUT 1      //  0.01 Hz
-#define MAX_FREQ_OUT 6100   // 61.00 Hz
+#define MAX_FREQ_OUT 6100   // 61.00 Hz for software function
+#define MAX_FREQ_TIMER 1600000	// 16kHz dla timera
 #define SCAN_STEPS 20       // For scan function purpose - default steps
 #define MAX_LABELS 9        // jump labels maximum
 
@@ -59,9 +60,13 @@ unsigned long lastFreq = MIN_FREQ_OUT;  // Uses scan function
 byte pwm = 50;							// Duty cycle of pulse width modulation: 1-99 %
 int minBatteryLevel = 0; 
 boolean Xoff = false;
+
+//use global variables locally, for saving RAM memory
 byte b;
 int i;
 long l;
+unsigned long ul;
+
 
 //bioZAP jump & labels
 int labelPointer[MAX_LABELS+1];  		// Next line beginning address of label
@@ -76,6 +81,7 @@ const unsigned int btnTimeOut = 5000UL;                                 // Choos
 boolean outputDir = false;
 byte coilState = LOW;
 byte pin3State = LOW;
+byte relayState =LOW;
 unsigned long pauseTime =0; 
  
 volatile boolean pause = false; // true = pause on
@@ -375,16 +381,17 @@ int executeCmd(String cmdLine, boolean directMode){
     } else if (param[0]=="jump"){
 // Jump [label number]
 
-    	 if (  jump(param[1].toInt(), adr)  )  {
+    	if (  jump(param[1].toInt(), adr)  )  {
 
-    	#ifdef SERIAL_DEBUG
-    	        Serial.print("jump->label: ");
-    	        Serial.println(param[1].toInt());
-    	        Serial.print("jump->address: ");
-    	        Serial.println(adr);
-    	#endif
-    	   	    	return adr;
-    	   	    }
+			#ifdef SERIAL_DEBUG
+				Serial.print("jump->label: ");
+				Serial.println(param[1].toInt());
+				Serial.print("jump->address: ");
+				Serial.println(adr);
+			#endif
+
+    	   	return adr;
+    	}
 
 
     } else if (param[0]=="rm"){
@@ -442,26 +449,30 @@ int executeCmd(String cmdLine, boolean directMode){
     } else if (param[0]=="off"){
 // Turn off 
 
-      off();
+    	off();
 
 
     } else if (param[0]=="chp"){
 // Change output signal polarity
     
-      //chp(byte(param[1].toInt()));
-      chp(byte(param[1].toInt()));
-      Serial.println("OK");
+    	if (param[1]=="~") {
+
+			  if (relayState) {
+				  chp(LOW);
+			  } else {
+				  chp(HIGH);
+			  }
+
+    	} else 	chp(byte(param[1].toInt()));
+
+    	Serial.println("OK");
 
 
     } else if (param[0]=="wait"){
 // Wait millis or micros (negative value)
-    	int w = param[1].toInt();
-    	if (w>=0) {
-    		wait(w);
-    	} else {
-    		delayMicroseconds(-w);
-    	}
-      Serial.println("OK");
+
+    	wait(param[1].toInt());
+    	Serial.println("OK");
 
 
     } else if (param[0]=="rec"){
@@ -563,13 +574,6 @@ int executeCmd(String cmdLine, boolean directMode){
       Serial.println("OK");
 
 
-    } else if (param[0]=="xfreq"){
-// Generate square signal - freq [freq] [time_sec] more then 50Hz
-
-      xfreq(param[1].toInt(), param[2].toInt(), pwm);
-      Serial.println("OK");
-
-
     } else if (param[0]=="scan"){
 // Scan from lastFreq  - scan [freq to] [time_ms] <steps>
       
@@ -579,8 +583,6 @@ int executeCmd(String cmdLine, boolean directMode){
     		scan(param[1].toInt(), param[2].toInt(), param[3].toInt());
     	}
       Serial.println("OK");
-
-      //void scan(unsigned int freq, unsigned long period){
 
 
     } else if (param[0]=="restart"){
@@ -619,6 +621,7 @@ return 0;
 
 
 
+///////////////////////// bioZAP ////////////////////////////////////////
 
 void rm(){
 // Remove, clear script therapy from memory
@@ -808,7 +811,7 @@ int jump(int labelNumber, int &adr){
 
 				return adr;
 
-			} else if(labelLoops[labelNumber]==-1) { //Unlimited loop
+			} else if(labelLoops[labelNumber]==-1) { //Unlimited loop  (-1 means maximum value of unsigned variable)
 
 				adr = labelPointer[labelNumber];
 				return adr;
@@ -820,33 +823,48 @@ int jump(int labelNumber, int &adr){
 }
 
 
-void scan(unsigned long freq_, unsigned long period, int steps){
-  // Scan from lastFreq to freq used SCAN_STEPS by period
+void scan(unsigned long _freq, unsigned long period, int steps){
+// Scan from lastFreq to freq used SCAN_STEPS by period
+
+	//SCAN_STEPS default;
+	long scanSteps=steps;
 
   
-  long scanSteps=SCAN_STEPS;
+	long stepPeriod = period /scanSteps;
+	if (stepPeriod < 1) {
+		scanSteps = period;
+		stepPeriod=1;
+	}
+	long startFreq = lastFreq;
+	long stepFreq = long( constrain(_freq, MIN_FREQ_OUT, MAX_FREQ_TIMER) - lastFreq ) / scanSteps;
 
-  
-  long stepPeriod = period /scanSteps;
-  if (stepPeriod < 1) {
-    scanSteps = period;
-    stepPeriod=1;
-  }
-  long startFreq = lastFreq;
-  long stepFreq = long( constrain(freq_, MIN_FREQ_OUT, MAX_FREQ_OUT) - lastFreq ) / scanSteps;
-/*
-  Serial.println(freq);
-  Serial.println(lastFreq);
-  Serial.println(long(freq-lastFreq));
-  Serial.println(startFreq);  
-  Serial.println(stepPeriod);
-  Serial.println(scanSteps);
-  Serial.println(stepFreq);
-*/  
 
-  for (int i=0; i<scanSteps; i++) {
-    freq(startFreq+(i*stepFreq), stepPeriod);
-  }
+	#ifdef SERIAL_DEBUG
+		Serial.println("scan");
+		Serial.print("freq: ");
+		Serial.println(_freq);
+		Serial.print("lastFreq: ");
+		Serial.println(lastFreq);
+		Serial.print("freq-lastFreq: ");
+		Serial.println(_freq-lastFreq);
+		Serial.print("startFreq: ");
+		Serial.println(startFreq);
+		Serial.print("stepPeriod: ");
+		Serial.println(stepPeriod);
+		Serial.print("scanSteps: ");
+		Serial.println(scanSteps);
+		Serial.print("stepFreq: ");
+		Serial.println(stepFreq);
+	#endif
+
+	for (int i=1; i<=scanSteps; i++) {
+		freq(startFreq+(i*stepFreq), stepPeriod);
+
+		#ifdef SERIAL_DEBUG
+			Serial.print("freq: ");
+			Serial.println(startFreq+(i*stepFreq));
+		#endif
+	}
 }
 
 void ls(){
@@ -886,20 +904,20 @@ void ls(){
 
 
 
-void xfreq(unsigned long _freq, long period, byte pwm){
+void xfreq(unsigned long _freq, /*long period,*/ byte pwm){
 /* Experimental version of freq function, generating more then 60Hz signal on pin PD5 (OC0B)
- * xfreq supports 61Hz - 16kHz with accuracy less then 1% + quartz error
+ * xfreq supports 61Hz - 16kHz with accuracy less then 1.6% + quartz error
  * See:
  * https://biotronika.pl/sites/default/files/2018-10/freePEMF_supported_freq_61Hz-16kHz.pdf
  */
 
 
 	uint16_t prescaler = 1;
-	unsigned long l;
-	boolean flashLED = 1;
+	//unsigned long l;
+	//boolean flashLED = 1;
 
 
-	lastFreq =constrain( _freq, 6100, 1600000) ;
+	lastFreq =constrain( _freq, MAX_FREQ_OUT, MAX_FREQ_TIMER) ;
 
 	//OC0B / PD5 / PIN5 / CoilPin as output
     //DDRD |= (1 << DDD5); //Already is set
@@ -938,8 +956,8 @@ void xfreq(unsigned long _freq, long period, byte pwm){
     //Set PWM duty cycle
     OCR0B = pwm * OCR0A / 100;
 
-
-#ifdef SERIAL_DEBUG
+	#ifdef SERIAL_DEBUG
+    /*
 			Serial.println("xfreq->registers: ");
 			Serial.print("TCCR0A: ");
 			Serial.println(TCCR0A, BIN);
@@ -949,47 +967,8 @@ void xfreq(unsigned long _freq, long period, byte pwm){
 			Serial.println(OCR0A , BIN);
 			Serial.print("OCR0B : ");
 			Serial.println(OCR0B , BIN);
-#endif
-
-	if (period >= 0) {
-
-		//time in seconds;
-
-		for( l=0 ; l < period; l++ ) {
-			_delay_ms(1000);
-			Serial.print('.');
-			//TODO battery level check
-
-			//Green led flashing every one second
-			digitalWrite(greenPin, flashLED);
-			flashLED = !flashLED;
-
-			//l is in seconds
-			l+=checkPause()/1000;
-			DDRD |= (1 << DDD5);
-		}
-
-	} else {
-
-		//Turn green LED off for a while (milliseconds)
-		digitalWrite(greenPin, LOW);
-
-		//negative time in milliseconds
-		for( l=0 ; l < -period; l++ ) _delay_ms(1);
-
-		//l is in milliseconds
-		l+=checkPause();
-
-	}
-
-
-    //Reset registers
-    TCCR0A = 3;
-    TCCR0B = 3;
-    OCR0A=0;
-    OCR0B=0;
-    digitalWrite(greenPin, HIGH);
-
+			*/
+	#endif
 
 }
 
@@ -1000,13 +979,60 @@ void freq(unsigned long _freq, long period, byte pwm) {
 	//Remember last frequency for scan function
 	//lastFreq =constrain( _freq, MIN_FREQ_OUT, MAX_FREQ_OUT) ;
 	lastFreq =_freq;
+	boolean flashLED = 1;
 
 	if (lastFreq==0) lastFreq=1;
 
 	if (lastFreq>MAX_FREQ_OUT) {
 
 		//Use experimental time-counter generator
-		xfreq(lastFreq, period,pwm);
+		xfreq(lastFreq, /*period,*/ pwm);
+
+		//Wait time
+		if (period >= 0) {
+
+			//time in seconds;
+
+			for( ul = 0 ; ul < period; ul++ ) {
+				_delay_ms(1000);
+				Serial.print('.');
+				//TODO battery level check
+
+				//Green led flashing every one second
+				digitalWrite(greenPin, flashLED);
+				flashLED = !flashLED;
+
+				l=checkPause();
+				if (l) {
+
+					//l is in seconds
+					ul+=l/1000;
+
+					//Set timer registers again after back from pause
+					xfreq(lastFreq,  pwm);
+				}
+
+			}
+
+		} else {
+
+			//Turn green LED off for a while (milliseconds)
+			digitalWrite(greenPin, LOW);
+
+			//negative time in milliseconds
+			for( ul=0 ; ul < -period; ul++ ) _delay_ms(1);
+
+			//l is in milliseconds
+			ul+=checkPause();
+
+		}
+
+	    //Reset registers
+	    TCCR0A = 3;
+	    TCCR0B = 3;
+	    OCR0A=0;
+	    OCR0B=0;
+	    digitalWrite(greenPin, HIGH);
 
 	} else {
   
@@ -1145,12 +1171,12 @@ void chp(byte outputDir){
   //Change output polarity
 
   digitalWrite(coilPin, LOW);  // turning coil off
-  if (outputDir) {
-    digitalWrite(relayPin, HIGH); // turn relay on 
-  } else {
-    digitalWrite(relayPin, LOW); // turn relay off 
-  }
   
+  relayState=outputDir;
+  digitalWrite(relayPin, relayState);
+
+
+
 }
 
 int bat() {
