@@ -993,20 +993,19 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 			//time in seconds;
 
-			for( ul = 0 ; ul < period; ul++ ) {
-				_delay_ms(1000);
-				Serial.print('.');
-				//TODO battery level check
+			for( l = 0 ; l < period*10; l++ ) {
+				_delay_ms(100);
+				if (l % 10 == 0) Serial.print('.');
+
+				// Battery level check
+				checkBattLevel(); //If too low then off
 
 				//Green led flashing every one second
 				digitalWrite(greenPin, flashLED);
 				flashLED = !flashLED;
 
-				l=checkPause();
-				if (l) {
 
-					//l is in seconds
-					ul+=l/1000;
+				if (checkPause()) {
 
 					//Set timer registers again after back from pause
 					xfreq(lastFreq,  pwm);
@@ -1020,10 +1019,11 @@ void freq(unsigned long _freq, long period, byte pwm) {
 			digitalWrite(greenPin, LOW);
 
 			//negative time in milliseconds
-			for( ul=0 ; ul < -period; ul++ ) _delay_ms(1);
+			for( l=0 ; l < -period; l++ ) _delay_ms(1);
 
-			//l is in milliseconds
-			ul+=checkPause();
+			checkBattLevel(); //If too low then off
+
+			checkPause();
 
 		}
 
