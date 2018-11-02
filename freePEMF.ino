@@ -1,10 +1,10 @@
 /*
- * One ino file of freePEMF firmware.
+ * One Arduino ino file of freePEMF firmware.
  *
  * Chris Czoba (c) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl (for Polish)
  *
- * New 2017-07-28 software version running bioZAP 2018-10-21
+ * New software version running bioZAP 2018-10-21
  * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
  */
 
@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-10-29"
+#define SOFT_VER "2018-11-01"
 
 #include <EEPROM.h>
 
@@ -92,6 +92,7 @@ void getParams(String &inputString);
  int executeCmd(String cmdLine, boolean directMode = false);
 void eepromUpload(int adr = 0);
 boolean readSerial2Buffer(int &endBuffer);
+unsigned long inline checkPause();
 
 //bioZAP functions
 void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
@@ -884,16 +885,20 @@ void ls(){
 
 
 
-//Experimental version of freq function generating more then 60Hz signal on pin PD5 (OC0B)
-void xfreq(unsigned long _freq, long period, byte pwm)
-{
+
+void xfreq(unsigned long _freq, long period, byte pwm){
+/* Experimental version of freq function, generating more then 60Hz signal on pin PD5 (OC0B)
+ * xfreq supports 61Hz - 16kHz with accuracy less then 1% + quartz error
+ * See:
+ * https://biotronika.pl/sites/default/files/2018-10/freePEMF_supported_freq_61Hz-16kHz.pdf
+ */
+
 
 	uint16_t prescaler = 1;
 	unsigned long l;
 	boolean flashLED = 1;
 
 
-	//xfreq supports 61Hz - 16kHz
 	lastFreq =constrain( _freq, 6100, 1600000) ;
 
 	//OC0B / PD5 / PIN5 / CoilPin as output
@@ -903,7 +908,7 @@ void xfreq(unsigned long _freq, long period, byte pwm)
     TCCR0A = (0 << COM0A1) | (0 << COM0A0) | (1 << COM0B1) | (0 << COM0B0) | (1 << WGM01) | (1 << WGM00);
 
 
-    // Choose the best prescaler for frequency
+    // Choose the best prescaler for the frequency
     if (lastFreq<24500) {
 
     	prescaler = 1024;
@@ -958,18 +963,22 @@ void xfreq(unsigned long _freq, long period, byte pwm)
 			//Green led flashing every one second
 			digitalWrite(greenPin, flashLED);
 			flashLED = !flashLED;
+
+			//l is in seconds
+			l+=checkPause()/1000;
+			DDRD |= (1 << DDD5);
 		}
 
 	} else {
 
-		//Turn gree LED off for a while (milliseconds)
+		//Turn green LED off for a while (milliseconds)
 		digitalWrite(greenPin, LOW);
 
 		//negative time in milliseconds
 		for( l=0 ; l < -period; l++ ) _delay_ms(1);
 
-
-
+		//l is in milliseconds
+		l+=checkPause();
 
 	}
 
@@ -996,24 +1005,24 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 	if (lastFreq>MAX_FREQ_OUT) {
 
-		//Use experimental time-counter pwm generator
+		//Use experimental time-counter generator
 		xfreq(lastFreq, period,pwm);
 
 	} else {
   
-	
+		//Use software generator
 		unsigned long upInterval = pwm*1000UL/lastFreq;
 		unsigned long downInterval = (100UL-pwm)*1000UL/lastFreq;
 
 
-		unsigned long timeUp;
+		unsigned long uptime;
 
 		if (period>0) {
 			//Seconds
-			timeUp = millis() + (period*1000);
+			uptime = millis() + (period*1000);
 		} else {
 			//Milliseconds
-			timeUp = millis() + (-period);
+			uptime = millis() + (-period);
 		}
 	
 #ifdef SERIAL_DEBUG
@@ -1025,13 +1034,13 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 		unsigned long serialStartMillis = millis();
 		unsigned long startIntervalMillis = millis();
-		unsigned long pausePressedMillis;
+		//unsigned long pausePressedMillis;
 
 		coilState=HIGH;
 		digitalWrite(coilPin, coilState);   // turn coil off
 		digitalWrite(greenPin, coilState);   // turn LED off
 
-		while(millis()< timeUp) {
+		while(millis()< uptime) {
 		  //time loop
 
 			if (((millis() - startIntervalMillis) >= upInterval) && (coilState==HIGH)) {
@@ -1061,35 +1070,8 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 			//TODO serial break command
 
-			if (pause) {
-			//Pause - button pressed
-
-				pausePressedMillis = millis();
-				beep(200);
-				digitalWrite(coilPin, LOW);     // turn coil off
-				digitalWrite(greenPin, HIGH);   // turn LED on
-
-				while (pause){
-				//wait pauseTimeOut or button pressed
-
-					if (millis()> pausePressedMillis + pauseTimeOut) {
-						beep(500);
-						off();
-					}
-
-				}
-				beep(200);
-
-				//Correct working time
-				timeUp += millis()-pausePressedMillis;
-				startIntervalMillis += millis()-pausePressedMillis;
-
-
-				//Continue
-				digitalWrite(coilPin, coilState);    // turn coil on
-				digitalWrite(greenPin, coilState);   // turn LED on/
-			}
-
+			//Check if pause button pressed and correct uptime
+			uptime += checkPause();
 
 			//Count each second and print dot
 			if (millis()-serialStartMillis >= 1000) { //one second
@@ -1103,6 +1085,42 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 }
 
+
+unsigned long inline checkPause(){
+	if (pause) {
+	//Pause - button pressed
+
+		unsigned long pausePressedMillis;
+
+		pausePressedMillis = millis();
+		beep(200);
+		digitalWrite(coilPin, LOW);     // turn coil off
+		digitalWrite(greenPin, HIGH);   // turn LED on
+
+		while (pause){
+		//wait pauseTimeOut or button pressed
+
+			if (millis()> pausePressedMillis + pauseTimeOut) {
+				beep(500);
+				off();
+			}
+
+		}
+		beep(200);
+
+		//Correct working time
+		//timeUp += millis()-pausePressedMillis;
+		//startIntervalMillis += millis()-pausePressedMillis;
+
+
+		//Continue
+		digitalWrite(coilPin, coilState);    // turn coil on
+		digitalWrite(greenPin, coilState);   // turn LED on/
+
+		//Return delta to work time correction
+		return millis()-pausePressedMillis;
+	} else	return 0;
+}
 
 void off() {
   // Power off function

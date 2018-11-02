@@ -30,6 +30,8 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 * njump
 * jump3
 * remove wait microseconds
+* pause btn xfreq
+
 
 #### DONE
 * freq
@@ -44,4 +46,5 @@ or [bioZAP 2018-04-09.pdf](https://biotronika.pl/sites/default/files/2018-04/bio
 * pin3
 * pwm
 * xfreq 61Hz - 16kHz
+
 
