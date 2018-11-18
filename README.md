@@ -22,12 +22,13 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 1. support for bluetooth interface and communication with PC & mobile phones
 
 #### TODO:
-
 * hrm
 * chrm
 * jump ... min max
 * njump ... min max
 * jump3
 * support for bluetooth interface
+
+#### DONE
 * during loading a therapy add voice signal after committing each part of script
 

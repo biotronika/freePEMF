@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-11-02"
+#define SOFT_VER "2018-11-18"
 
 #include <EEPROM.h>
 
@@ -46,8 +46,8 @@
 #define MAX_LABELS 9        // jump labels maximum
 
 //TODO delete
-#define XON 17  //0x11
-#define XOFF 19 //0x13
+//#define XON 17  //0x11
+//#define XOFF 19 //0x13
 
 
 //bioZAP
@@ -1385,6 +1385,41 @@ void serialEvent() {
 }
 
 
+//2018-11-18 elektros230: New and better version function readSerial2Buffer from multiZAP
+// Local echo is on
+
+boolean readSerial2Buffer(int &endBuffer) {
+    int i ; //= 0; //buffer indicator
+    char c;
+
+    //while(true) {
+    for( i=0; i<PROGRAM_BUFFER; i++){
+
+          while(!Serial.available());
+
+          c = Serial.read();
+
+          memBuffer[i] = c;
+
+          //Show echo when loading to the memory
+          Serial.print(c);
+
+          endBuffer = i;
+
+          if (c == '@' ) {
+
+        	  //voice signal after committing each part of script
+        	  beep(30);
+
+        	  return false;
+
+          }
+
+    }
+
+    return true;
+}
+
 void eepromUpload(int adr) {
   unsigned int i = 0;
   boolean flagCompleted;
@@ -1392,87 +1427,29 @@ void eepromUpload(int adr) {
   int endBuffer;
   //eepromLoad = true;
 
-  do { 
+  do {
     //Serial.print(char(XON));
     Xoff = readSerial2Buffer(endBuffer);
     int b =0; // buffer pointer
     flagCompleted = false;
     while (!flagCompleted){
-      
+
       flagCompleted = !(i+adr<PROGRAM_SIZE) || (memBuffer[b]=='@') || !(b < endBuffer);
       if (memBuffer[b]==';') memBuffer[b]='\n';   //Semicolon as end line LF (#10) for windows script
-      if (memBuffer[b]=='\r') memBuffer[b] = ' '; //#13 -> space, No continue because of changing script length 
-      EEPROM.write(i+adr, memBuffer[b]); 
+      if (memBuffer[b]=='\r') memBuffer[b] = ' '; //#13 -> space, No continue because of changing script length
+      EEPROM.write(i+adr, memBuffer[b]);
       //Serial.print(memBuffer[b]);
       i++; b++;
     }
     //End of shorter program then PROGRAM_SIZE size
-    
-  } while (Xoff); 
-  if (i+adr<PROGRAM_SIZE) EEPROM.write(i+adr, 255); 
+
+  } while (Xoff);
+  if (i+adr<PROGRAM_SIZE) EEPROM.write(i+adr, '@');
   //eepromLoad=false;
 }
 
-boolean readSerial2Buffer(int &endBuffer) {  
-    int i = 0; //buffer indicator
-    char c;
-   
-    boolean Xoff = false;
-    int highBufferLevel = 0.7 * PROGRAM_BUFFER;
-    
-    Serial.write(XON);
-    //Serial.print("\nXON\n");
 
-    while(true) {
-      if (Xoff) {
-        //after send Xoff
-        
-          if (Serial.available()){
-            c = Serial.read();
-            memBuffer[i] = c;
-            //Serial.print(c);
-            endBuffer = i;
-            i++;
 
-          } else {
-            break;
-          };
-           //if (i>= PROGRAM_BUFFER) break;
-         
-
-      } else {
-        //before send Xoff
-          
-          Xoff = (i > highBufferLevel);
-
-          while(!Serial.available());
-
-          c = Serial.read();
-          
-          memBuffer[i] = c;
-          //Serial.print(c);
-          endBuffer = i;
-
-          if (c == '@' ) {
-            break;    
-          }
-          
-          i++;
-          if (Xoff) {
-            for (int j=0; j<64; j++)
-            Serial.write(XOFF);  
-            //Serial._rx_complete_irq();
-            //Serial._tx_udr_empty_irq();
-            //Serial.print("\nXOFF\n");
-          }         
-      }
-      
-      
-      
-    }
-  return Xoff;  
-
-}
 
 
 #include <avr/pgmspace.h>
