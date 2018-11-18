@@ -29,4 +29,5 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 * njump ... min max
 * jump3
 * support for bluetooth interface
+* during loading a therapy add voice signal after committing each part of script
 
