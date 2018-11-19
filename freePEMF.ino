@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-11-18"
+#define SOFT_VER "2018-11-19"
 
 #include <EEPROM.h>
 
@@ -34,7 +34,7 @@
 
 
 //bioZAP
-#define WELCOME_SCR "Free BIOzap interpreter welcome! See http://biotronics.eu"
+#define WELCOME_SCR "bioZAP interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
 #define MAX_CMD_PARAMS 4    // Count of command parameters
