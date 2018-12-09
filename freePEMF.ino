@@ -11,20 +11,23 @@
 //#define SERIAL_DEBUG     //Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
-#define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-12-09"
+#define HRDW_VER "NANO 4.3"
+// Compatible with NANO 4.2
+#define SOFT_VER "2018-12-10"
 
 #include <EEPROM.h>
 
 //Pin definition
-#define coilPin 5      // Coil driver IRF540
-#define powerPin 4     // Power relay
-#define relayPin 9     // Direction relay
-#define buzzPin 10     // Buzzer
-#define btnPin 3       // Power On-Off / Pause / Change program button 
-#define redPin 12      // Red LED
-#define greenPin 11    // Green LED
-#define hrmPin 2       // Biofeedback HR meter on 3th plug pin.
+#define coilPin 5	// Coil driver IRF540 (NANO 4.2 only) ENA driver pin for NANO 4.3
+#define powerPin 4	// Power relay
+#define relayPin 9	// Direction relay - NANO 4.2 only (4.3 does not have direction relay)
+#define int1Pin A1	// NANO 4.3 supports L298N driver INT1 pin
+#define int2Pin A0	// INT2 driver pin
+#define buzzPin 10	// Buzzer
+#define btnPin 3	// Power On-Off / Pause / Change program button
+#define redPin 12	// Red LED
+#define greenPin 11	// Green LED
+#define hrmPin 2	// Biofeedback HR meter on 3th plug pin.
 
 //Battery staff
 #define batPin PIN_A7                 // Analog-in battery level
@@ -127,6 +130,8 @@ void setup() {
 	pinMode(greenPin, OUTPUT);  // LED on board
 	pinMode(redPin,   OUTPUT);  // LED on board
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
+	pinMode(int1Pin, OUTPUT);   // Direction L298N
+	pinMode(int2Pin, OUTPUT);   // Direction L298N
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
 	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
@@ -175,6 +180,9 @@ void setup() {
 	}
   
 	delay(10);
+
+	//Initialization of NANO 4.3 driver
+	chp(0);
 
   
 	//Define minimum battery level uses in working for performance purpose.
@@ -1178,7 +1186,19 @@ void chp(byte outputDir){
   digitalWrite(coilPin, LOW);  // turning coil off
   
   relayState=outputDir;
+
+  //NANO 4.2 direction relay
   digitalWrite(relayPin, relayState);
+
+  //NANO 4.3 L298N driver
+  digitalWrite(int1Pin, relayState);
+
+  if (relayState) {
+	  digitalWrite(int2Pin, LOW);
+  } else {
+	  digitalWrite(int2Pin, HIGH);
+  }
+
 
 
 
