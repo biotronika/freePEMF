@@ -12,7 +12,7 @@
 //#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
 
 #define HRDW_VER "NANO 4.2"
-#define SOFT_VER "2018-11-19"
+#define SOFT_VER "2018-12-09"
 
 #include <EEPROM.h>
 
@@ -99,6 +99,10 @@ void getParams(String &inputString);
 void eepromUpload(int adr = 0);
 boolean readSerial2Buffer(int &endBuffer);
 unsigned long inline checkPause();
+void rechargeBattery();
+void checkBattLevel();
+void btnEvent();
+int readFlashLine(int fromAddress, String &lineString);
 
 //bioZAP functions
 void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
@@ -112,6 +116,7 @@ void exe(int &adr, int prog=0);
  int mem(String param);
 void ls();
 void rm();
+void chp(byte outputDir);
 
  
 void setup() {  
