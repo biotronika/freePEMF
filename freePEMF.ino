@@ -11,7 +11,9 @@
 //#define SERIAL_DEBUG     // Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
 
-#define FREEPEMF_DUO  //uncheck for freePEMF duo
+#define FREEPEMF_DUO  //Uncheck for freePEMF duo
+
+#define SOFT_VER "2018-12-11"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -21,34 +23,50 @@
  #define HRDW_VER "NANO 4.3"	// standard with IRF540  or L298N driver
 #endif
 
-#define SOFT_VER "2018-12-11"
+
+
 #include <EEPROM.h>
 
 //Pin definition
-#define coilPin 5	// Coil driver IRF540 (NANO 4.2 only) ENA driver pin for NANO 4.3
+#define coilPin 5	// Coil driver IRF540 (NANO 4.2) or ENA driver pin for NANO 4.3
 #define powerPin 4	// Power relay
 #define relayPin 9	// Direction relay - NANO 4.2 only (4.3 does not have direction relay)
 
-#define int2Pin A0	// NANO 4.3 and 5.0 supports L298N driver INT2 (ch 1) driver pin
-#define int1Pin A1	// INT1 (ch 1)
-#define int1Pin A2	// INT4 (ch 2)
-#define int1Pin A3	// INT3 (ch 2)
+#define int1Pin A0	// NANO 4.3 and 5.0 supports L298N driver INT1 (ch 1) driver pin
+#define int2Pin A1	// INT2 (ch 1)
+#define int3Pin A2	// INT3 (ch 2)
+#define int4Pin A3	// INT4 (ch 2)
 
 #define buzzPin 10	// Buzzer
 #define btnPin 3	// Power On-Off / Pause / Change program button
 #define hrmPin 2	// Biofeedback HR meter on 3th plug pin.
 
+
 #ifndef FREEPEMF_DUO
- #define redPin 12	// Red LED
+
+ #define redPin 12		// Red LED
  #define greenPin 11	// Green LED
+
 #else
- #define redPin PC6	// reset pin - not used
+
+ #define redPin PC6		// reset pin - not used
  #define greenPin LED_BUILTIN	// on board led
  #define coilAuxPin 12	//  ENB driver pin for NANO 5.0
 
- #define SCL A5  //
- #define SDA A4
+ #define SCL A5  		// I2C LCD interface
+ #define SDA A4			// I2C
+
 #endif
+
+
+//Bluetooth
+#define btSTATE 7	//OUT Change to AT mode if is high during power is on.
+#define btEN	8	//IN
+#define btPOWER	6	//OUT
+
+
+
+
 
 
 
@@ -67,10 +85,12 @@
 #define MAX_CMD_PARAMS 4    // Count of command parameters
 
 #ifdef FREEPEMF_DUO
- #define LCD_SCREEN_LINE 2  // LCD user line number, -1 = no LCD
+ #define LCD_SCREEN_LINES 2  // LCD user line number, -1 = no LCD
  #define LCD_MESSAGE_LINE 1		//Default lcd line for bioZAP messages
+ #define LCD_PBAR_LINE 0		//Default lcd for progress bar and heart rate
+
 #else
- #define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
+ #define LCD_SCREEN_LINES -1  // LCD user lines number, -1 = no LCD
 #endif
 
 #define MIN_FREQ_OUT 1      //  0.01 Hz
@@ -138,6 +158,11 @@ void checkBattLevel();
 void btnEvent();
 int readFlashLine(int fromAddress, String &lineString);
 
+#ifdef FREEPEMF_DUO
+void progressBar (long totalTimeSec, long leftTimeSec);
+void message (String messageText, byte row = LCD_MESSAGE_LINE);
+#endif
+
 //bioZAP functions
 void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
  int jump(int labelNumber, int &adr);
@@ -156,16 +181,24 @@ void chp(byte outputDir);
 void setup() {  
               
 	// Initialize the digital pin as an in/output
-	pinMode(coilPin,  OUTPUT);  // Coil driver
+	pinMode(coilPin,  OUTPUT);  // Mail coil ch1
 	pinMode(powerPin, OUTPUT);  // Power relay
 	pinMode(greenPin, OUTPUT);  // LED on board
 	pinMode(redPin,   OUTPUT);  // LED on board
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
-	pinMode(int1Pin, OUTPUT);   // Direction L298N
-	pinMode(int2Pin, OUTPUT);   // Direction L298N
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
 	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
+
+	pinMode(int1Pin,  OUTPUT);   // Direction L298N (ch1)
+	pinMode(int2Pin,  OUTPUT);   // Direction L298N (ch1)
+
+#ifdef FREEPEMF_DUO
+	pinMode(int3Pin,  OUTPUT);   // Direction L298N (ch2)
+	pinMode(int4Pin,  OUTPUT);   // Direction L298N (ch2)
+	pinMode(coilAuxPin,  OUTPUT);   // Auxiliary coil ch2
+
+#endif
 
 	//bioZAP
 	// Initialize serial communication to PC communication
@@ -175,6 +208,10 @@ void setup() {
 	//Initialize LCD display
 	lcd.init();
 	lcd.backlight();
+
+    message ("freePEMF duo ", 0);
+    message (SOFT_VER, 1);
+
 #endif
 
 	// Reserve the memory for inputString:
@@ -261,6 +298,8 @@ void setup() {
     
     //Power on
     digitalWrite(powerPin, HIGH);
+
+
      
     Serial.println(WELCOME_SCR);
     Serial.print("Device freePEMF ");
@@ -350,6 +389,7 @@ void loop() {
 				//Restart timeout interval to turn off.
 				startInterval=millis();
 
+				//message (inputString);
 				executeCmd(inputString, true);
 				Serial.print('>'); //Cursor for new command
 
@@ -380,6 +420,10 @@ String formatLine(int adr, String line){
 
 int executeCmd(String cmdLine, boolean directMode){
 // Main interpreter function
+
+#ifdef FREEPEMF_DUO
+	message (cmdLine);
+#endif
 
 	getParams(cmdLine);
 
@@ -1119,6 +1163,10 @@ void freq(unsigned long _freq, long period, byte pwm) {
 		while(millis()< uptime) {
 		  //time loop
 
+#ifdef FREEPEMF_DUO
+			progressBar (period, uptime);
+#endif
+
 			if (((millis() - startIntervalMillis) >= upInterval) && (coilState==HIGH)) {
 
 				//Save start time interval
@@ -1335,6 +1383,10 @@ void rechargeBattery() {
   digitalWrite(redPin, HIGH);
   beep(200);
   digitalWrite(greenPin, LOW);
+
+#ifdef FREEPEMF_DUO
+		message ("battery charging");
+#endif
       
   unsigned long startInterval = millis();
   int startBatLevel = analogRead(batPin);
@@ -1346,6 +1398,10 @@ void rechargeBattery() {
 
         digitalWrite(greenPin, HIGH);
         beep(200);
+
+#ifdef FREEPEMF_DUO
+		message ("battery ready");
+#endif
         // ... and charge further.
         while (1);
       }
@@ -1519,6 +1575,7 @@ const char internalProgram[] PROGMEM   = {
 
 		":1\n"
 		"#Standard program 13 m\n"
+		"wait 3000\n"
 		"rec 1179 120\n"
 		"chp 1\n"
 		"rec 783 120\n"
@@ -1537,6 +1594,7 @@ const char internalProgram[] PROGMEM   = {
 
 		":2\n"
 		"#Earth regeneration - 8 m\n"
+		"wait 3000\n"
 		"rec 1179 120\n"
 		"chp 1\n"
 		"rec 1179 120\n"
@@ -1549,6 +1607,7 @@ const char internalProgram[] PROGMEM   = {
 
 		":3\n"
 		"#Antisterss & meditation 16 m\n"
+		"wait 3000\n"
 		"freq 1200 20\n"
 		"freq 1179 150\n"
 		"chp 1\n"
@@ -1634,12 +1693,23 @@ int readFlashLine(int fromAddress, String &lineString){
 }
 
 
-///////////////////////////////
-
+/////////////////////////////// LCD SUPPORT ////////////////////////////////////
 
 #ifdef FREEPEMF_DUO
+
+void message (String messageText, byte row ) {
+// Show message in row line
+
+	lcd.setCursor(0, row);
+	lcd.print( "                " );
+	lcd.setCursor(0, row);
+	lcd.print( messageText );
+}
+
 void progressBar (long totalTimeSec, long leftTimeSec) {
 //Showing progress with left time in formats: 999m (greater then 10min), 120s (less then 10min)
+
+unsigned long _lastProgressBarShowed = millis();
 
 #ifdef SERIAL_DEBUG
 	Serial.print("progressBar1: ");
