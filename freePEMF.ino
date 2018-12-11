@@ -1,5 +1,5 @@
 /*
- * One Arduino ino file of freePEMF firmware.
+ * One Arduino ino file of freePEMF and freePEMF duo firmware.
  *
  * Chris Czoba (c) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl (for Polish)
@@ -8,26 +8,50 @@
  * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
  */
 
-//#define SERIAL_DEBUG     //Uncomment this line for debug purpose
-//#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
+//#define SERIAL_DEBUG     // Uncomment this line for debug purpose
+//#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
 
-#define HRDW_VER "NANO 4.3"
-// Compatible with NANO 4.2
-#define SOFT_VER "2018-12-10"
+#define FREEPEMF_DUO  //uncheck for freePEMF duo
 
+#ifdef FREEPEMF_DUO
+ #define HRDW_VER "NANO 5.0" // freePEMF duo
+ #include <Wire.h>
+ #include <LiquidCrystal_I2C.h>
+#else
+ #define HRDW_VER "NANO 4.3"	// standard with IRF540  or L298N driver
+#endif
+
+#define SOFT_VER "2018-12-11"
 #include <EEPROM.h>
 
 //Pin definition
 #define coilPin 5	// Coil driver IRF540 (NANO 4.2 only) ENA driver pin for NANO 4.3
 #define powerPin 4	// Power relay
 #define relayPin 9	// Direction relay - NANO 4.2 only (4.3 does not have direction relay)
-#define int1Pin A1	// NANO 4.3 supports L298N driver INT1 pin
-#define int2Pin A0	// INT2 driver pin
+
+#define int2Pin A0	// NANO 4.3 and 5.0 supports L298N driver INT2 (ch 1) driver pin
+#define int1Pin A1	// INT1 (ch 1)
+#define int1Pin A2	// INT4 (ch 2)
+#define int1Pin A3	// INT3 (ch 2)
+
 #define buzzPin 10	// Buzzer
 #define btnPin 3	// Power On-Off / Pause / Change program button
-#define redPin 12	// Red LED
-#define greenPin 11	// Green LED
 #define hrmPin 2	// Biofeedback HR meter on 3th plug pin.
+
+#ifndef FREEPEMF_DUO
+ #define redPin 12	// Red LED
+ #define greenPin 11	// Green LED
+#else
+ #define redPin PC6	// reset pin - not used
+ #define greenPin LED_BUILTIN	// on board led
+ #define coilAuxPin 12	//  ENB driver pin for NANO 5.0
+
+ #define SCL A5  //
+ #define SDA A4
+#endif
+
+
+
 
 //Battery staff
 #define batPin PIN_A7                 // Analog-in battery level
@@ -41,17 +65,24 @@
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
 #define MAX_CMD_PARAMS 4    // Count of command parameters
-#define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
+
+#ifdef FREEPEMF_DUO
+ #define LCD_SCREEN_LINE 2  // LCD user line number, -1 = no LCD
+ #define LCD_MESSAGE_LINE 1		//Default lcd line for bioZAP messages
+#else
+ #define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
+#endif
+
 #define MIN_FREQ_OUT 1      //  0.01 Hz
 #define MAX_FREQ_OUT 6100   // 61.00 Hz for software function
 #define MAX_FREQ_TIMER 1600000	// 16kHz dla timera
 #define SCAN_STEPS 20       // For scan function purpose - default steps
 #define MAX_LABELS 9        // jump labels maximum
 
-//TODO delete
-//#define XON 17  //0x11
-//#define XOFF 19 //0x13
-
+#ifdef FREEPEMF_DUO
+LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
+//LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+#endif
 
 //bioZAP
 String inputString = "";                // a string to hold incoming serial data
@@ -139,6 +170,12 @@ void setup() {
 	//bioZAP
 	// Initialize serial communication to PC communication
 	Serial.begin(9600);
+
+#ifdef FREEPEMF_DUO
+	//Initialize LCD display
+	lcd.init();
+	lcd.backlight();
+#endif
 
 	// Reserve the memory for inputString:
 	inputString.reserve(65); //NANO serial buffer has 63 bytes
@@ -1595,6 +1632,77 @@ int readFlashLine(int fromAddress, String &lineString){
 #endif
 	  return i;
 }
+
+
+///////////////////////////////
+
+
+#ifdef FREEPEMF_DUO
+void progressBar (long totalTimeSec, long leftTimeSec) {
+//Showing progress with left time in formats: 999m (greater then 10min), 120s (less then 10min)
+
+#ifdef SERIAL_DEBUG
+	Serial.print("progressBar1: ");
+	//Serial.println(totalTimeSec);
+	Serial.println(leftTimeSec);
+#endif
+	Serial.println(leftTimeSec);
+
+	//Show ones a second
+	if ( millis() > _lastProgressBarShowed + 1000 ) {
+		_lastProgressBarShowed = millis();
+
+
+		// Show progress bar in LCD_PBAR_LINE line - first is 0
+		lcd.setCursor( 0, LCD_PBAR_LINE );
+		if (leftTimeSec<36000) {
+			if (leftTimeSec>600){
+
+				lcd.print(  leftTimeSec/60 );
+				lcd.print("m   ");
+			} else if (leftTimeSec<60) {
+
+				lcd.print( leftTimeSec );
+				lcd.print("s   ");
+			} else {
+				//Minutes section
+				lcd.print( int( leftTimeSec/60 ) );
+				lcd.print(':');
+
+				//Seconds section
+				if (leftTimeSec % 60 <10) lcd.print('0');
+				lcd.print(leftTimeSec % 60);
+			}
+		}
+
+
+		if (totalTimeSec) {
+
+			byte percent = 5 + 100 * leftTimeSec / totalTimeSec;
+
+#ifdef SERIAL_DEBUG
+			//Serial.print("progressBar2 percent: ");
+			//Serial.println(percent);
+#endif
+			lcd.setCursor(5,LCD_PBAR_LINE);
+			for (int i=0; i<(percent/10);i++) lcd.write(255); //lcd.write('#');
+
+			lcd.print("          ");
+
+			lcd.setCursor(4,LCD_PBAR_LINE);
+			lcd.write('[');
+
+			lcd.setCursor(15,LCD_PBAR_LINE);
+			lcd.write(']');
+		}
+
+	}
+
+}
+
+
+#endif
+
 
 
 
