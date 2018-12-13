@@ -11,9 +11,9 @@
 //#define SERIAL_DEBUG     // Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
 
-#define FREEPEMF_DUO  //Uncheck for freePEMF duo
+#define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
-#define SOFT_VER "2018-12-11"
+#define SOFT_VER "2018-12-12"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -42,32 +42,26 @@
 #define hrmPin 2	// Biofeedback HR meter on 3th plug pin.
 
 
-#ifndef FREEPEMF_DUO
+#ifdef FREEPEMF_DUO
 
- #define redPin 12		// Red LED
- #define greenPin 11	// Green LED
-
-#else
-
- #define redPin PC6		// reset pin - not used
+ #define redPin   PC6
  #define greenPin LED_BUILTIN	// on board led
  #define coilAuxPin 12	//  ENB driver pin for NANO 5.0
 
  #define SCL A5  		// I2C LCD interface
  #define SDA A4			// I2C
+#else
+
+ #define redPin 12		// Red LED
+ #define greenPin 11	// Green LED
 
 #endif
 
 
 //Bluetooth
-#define btSTATE 7	//OUT Change to AT mode if is high during power is on.
-#define btEN	8	//IN
-#define btPOWER	6	//OUT
-
-
-
-
-
+//#define btStatePin 7	//OUT Change to AT mode if is high during power is on.
+//#define btEnPin	8	//IN
+#define btPowerPin	6	//OUT
 
 
 
@@ -131,7 +125,10 @@ int adr=0;								// Script interpreter pointer
 const unsigned long checkDeltaBatteryIncreasingVoltageTime = 600000UL;  // During charging battery minimum increasing voltage after x milliseconds.
                                                                         //  If after the x period the same voltage, green led starts lights. 
 const unsigned long pauseTimeOut = 600000UL;                            // 600000 Time of waiting in pause state as turn power off. (60000 = 1 min.)
-const unsigned int btnTimeOut = 5000UL;                                 // Choose therapy program time out. Counted form released button.
+#define btnBtMode 5000UL
+#define btnTimeOut 5000UL 												// Choose therapy program time out. Counted form released button.
+#define btnHrCalibrationMode 12000UL                                	// Choose therapy program time out. Counted form released button.
+
 boolean outputDir = false;
 byte coilState = LOW;
 byte pin3State = LOW;
@@ -190,6 +187,8 @@ void setup() {
 	pinMode(btnPin,    INPUT);  // Main button
 	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
 
+	pinMode(btPowerPin, OUTPUT);
+
 	pinMode(int1Pin,  OUTPUT);   // Direction L298N (ch1)
 	pinMode(int2Pin,  OUTPUT);   // Direction L298N (ch1)
 
@@ -246,21 +245,28 @@ void setup() {
 	//Wait until turn-on button release
 	startInterval = millis();
 	while (digitalRead(btnPin)==HIGH){
-		if ( millis() > ( startInterval + btnTimeOut ) ) {
-			programNo = 4; //Coil measurement test
+		ul = millis() - startInterval; //Pressed button period
+
+		if (ul > btnHrCalibrationMode) {
+			programNo =4; //Coil measurement test
 			digitalWrite(redPin, HIGH);
-      
+
+		} else if (ul > btnBtMode){
+			digitalWrite(btPowerPin,HIGH);
+
 		}
+
 	}
+
   
 	delay(10);
 
-	//Initialization of NANO 4.3 driver
+	//Initialization of NANO 4.3 and 5.0
 	chp(0);
 
   
 	//Define minimum battery level uses in working for performance purpose.
-	minBatteryLevel /*0-1023*/= (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
+	minBatteryLevel = (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
 
                                 
  if (programNo) { 
@@ -352,6 +358,7 @@ void loop() {
 
 		case 4:
 		//ON-OFF coil by pressing the button
+		//TODO: HRM calibration
 
 			digitalWrite(redPin, LOW);
 			while(1) {
