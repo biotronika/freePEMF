@@ -10,6 +10,7 @@
 
 //#define SERIAL_DEBUG     // Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
+#include <Arduino.h>  // for eclipse IDE
 
 #define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
@@ -45,7 +46,7 @@
 #ifdef FREEPEMF_DUO
 
  #define redPin   PC6
- #define greenPin LED_BUILTIN	// on board led
+ #define greenPin PB5 //LED_BUILTIN	// on board led
  #define coilAuxPin 12	//  ENB driver pin for NANO 5.0
 
  #define SCL A5  		// I2C LCD interface
@@ -66,7 +67,7 @@
 
 
 //Battery staff
-#define batPin PIN_A7                 // Analog-in battery level
+#define batPin A7                 // Analog-in battery level
 #define BATTERY_VOLTAGE_RATIO 0.153   // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
 #define MIN_BATTERY_LEVEL 90          // 90 means 9.0 V  (x10), less then that turn off
 #define USB_POWER_SUPPLY_LEVEL 65     // Maximum USB voltage level means 6.5V
