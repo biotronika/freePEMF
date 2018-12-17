@@ -14,7 +14,7 @@
 
 #define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
-#define SOFT_VER "2018-12-12"
+#define SOFT_VER "2018-12-17"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -429,11 +429,15 @@ String formatLine(int adr, String line){
 int executeCmd(String cmdLine, boolean directMode){
 // Main interpreter function
 
-#ifdef FREEPEMF_DUO
-	message (cmdLine);
-#endif
-
 	getParams(cmdLine);
+
+
+#ifdef FREEPEMF_DUO
+	//TODO change to for i=0 i++ param[i]
+	line = param[0]+" "+param[1]+" "+param[2]+" "+param[3];
+	message (cmdLine);
+	//if ( param[0] != "wait" ) message (cmdLine);
+#endif
 
 
     if ( param[0]=="mem" ) { 
