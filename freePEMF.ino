@@ -1784,12 +1784,3 @@ unsigned long _lastProgressBarShowed = millis();
 
 
 #endif
-
-
-
-
-
-
-
-
-
