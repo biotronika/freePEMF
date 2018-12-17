@@ -21,6 +21,7 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 
 #### TODO in freePEMF user manual
 1. support for bluetooth interface and communication with PC & mobile phones
+2. freePREMF duo functions description
 
 #### TODO:
 * hrm
