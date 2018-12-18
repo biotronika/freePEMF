@@ -12,8 +12,8 @@
  */
 
 #include <Arduino.h>  	// For eclipse IDE only
-//#define SERIAL_DEBUG     // Uncomment this line for debug purpose
-//#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
+#define SERIAL_DEBUG     // Uncomment this line for debug purpose
+#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
 
 
 #define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
@@ -100,6 +100,7 @@
 #ifdef FREEPEMF_DUO
 LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
 //LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+unsigned long _lastProgressBarShowed = millis();
 #endif
 
 //bioZAP
@@ -247,7 +248,12 @@ void setup() {
 	lcd.init();
 	lcd.backlight();
 
-    message ("freePEMF duo [ ]", 0);
+	if (programNo) {
+		message ("freePEMF duo", 0);
+	} else {
+		message ("freePEMF duo  PC", 0);
+	}
+
     message (SOFT_VER, 1);
 
 #endif
@@ -270,7 +276,6 @@ void setup() {
 
 	}
 
-  
 	delay(10);
 
 	//Initialization of NANO 4.3 and 5.0
@@ -449,16 +454,16 @@ String formatLine(int adr, String line){
 int executeCmd(String cmdLine, boolean directMode){
 // Main interpreter function
 
-	getParams(cmdLine);
-
 
 #ifdef FREEPEMF_DUO
 	//TODO: Wait should be not displayed
-	cmdLine.replace('\n', ' ');
-	//message (cmdLine );
-	if ( param[0] != "wait" ) message (cmdLine);
+	//cmdLine.replace('\n', ' ');
+	message (cmdLine );
+	//message ("test");
+	//if ( param[0] != "wait" ) message (cmdLine);
 #endif
 
+	getParams(cmdLine);
 
     if ( param[0]=="mem" ) { 
 // Upload terapy to EEPROM
@@ -624,27 +629,24 @@ int executeCmd(String cmdLine, boolean directMode){
 
     } else if (param[0]=="out"){
 // On-off coil
-    	i = param[1].toInt();
-    	if (i==11) i=3;
-    	if (i==10) i=2;
+		i = param[1].toInt();
+		if (i==11) i=3;
+		if (i==10) i=2;
 
-    	switch (i) {
-			case 'B00'-'B11':
-				coilsState=i;
-				out(coilsState);
-				Serial.println("OK");
-			break;
+    	if (param[1]=="~"){
+			coilsState = ~coilsState & B11;
+			out(coilsState);
+			Serial.println("OK");
 
-    		case '~':
-    			coilsState ^= B11;
-				out(coilsState);
-				Serial.println("OK");
-	    	break;
+    	} else if (i<=B11){
+			coilsState=i;
+			out(coilsState);
+			Serial.println("OK");
 
-    		default:
-				Serial.print("Error: wrong out parameter: ");
-	    		Serial.println(param[1]);
-	    	break;
+    	} else {
+			Serial.print("Error: wrong out parameter: ");
+			Serial.println(param[1]);
+
     	}
 
 
@@ -1172,16 +1174,16 @@ void freq(unsigned long _freq, long period, byte pwm) {
 		unsigned long startIntervalMillis = millis();
 
 		out(coilsState=B11); // turn coil on
-		digitalWrite(greenPin, coilsState);   // turn LED on
+		digitalWrite(greenPin, HIGH);   // turn LED on
 
 		while(millis()< uptime) {
 			//time loop
 
 #ifdef FREEPEMF_DUO
-			progressBar (period, uptime);
+			progressBar (period, (uptime-millis())/1000);
 #endif
 
-			if (((millis() - startIntervalMillis) >= upInterval) && (coilsState==HIGH)) {
+			if (((millis() - startIntervalMillis) >= upInterval) && (coilsState>0)) {
 
 				//Save start time interval
 				startIntervalMillis = millis();
@@ -1191,7 +1193,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 			}
 
-			if (((millis() - startIntervalMillis) >= downInterval) && (coilsState==LOW)) {
+			if (((millis() - startIntervalMillis) >= downInterval) && (coilsState==0)) {
 
 				//Save start time interval
 				startIntervalMillis = millis();
@@ -1297,8 +1299,21 @@ void chp(byte relayState){
 	digitalWrite(relayPin, relayState & B01);
 
 	//NANO 4.3 L298N driver
-	digitalWrite(int1Pin,  relayState & B01 );
-	digitalWrite(int2Pin,  relayState ^ B01 );
+	digitalWrite(int1Pin,  relayState & B01  );
+	digitalWrite(int2Pin, (relayState ^ B01) & B01 );
+
+#ifdef SERIAL_DEBUG
+	Serial.print("relayState ");
+	Serial.print(relayState);
+	Serial.print("  Main: ");
+	Serial.print(relayState & B01);
+	Serial.print(" ");
+	Serial.print((relayState ^ B01) & B01);
+	Serial.print(" Aux: ");
+	Serial.print((relayState & B10) >> 1);
+	Serial.print(" ");
+	Serial.println((relayState ^ B10) >> 1);
+#endif
 
 	//NANO 5.0 L298 driver - Auxiliary channel
 	digitalWrite(int3Pin, (relayState & B10) >> 1 );
@@ -1309,9 +1324,13 @@ void chp(byte relayState){
 void out(byte coilsState){
 	//Change output state on-off
 	// bits Bxx:  Aux, Main;
+#ifdef SERIAL_DEBUG_
+	Serial.print("coilsState: ");
+	Serial.println(coilsState & B01);
+#endif
+
 	//turn both outputs off
 	digitalWrite(coilPin, coilsState & B01);
-
 #ifdef FREEPEMF_DUO
 	digitalWrite(coilAuxPin, (coilsState & B10) >> 1 );
 #endif
@@ -1611,17 +1630,17 @@ const char internalProgram[] PROGMEM   = {
 		":1\n"
 		"#Standard program 13 m\n"
 		"rec 1179 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 783 120\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 2000 60\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 1500 60\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 1000 90\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 700 90\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 200 120\n"
 		"beep 500\n"
 		"off\n"
@@ -1629,11 +1648,11 @@ const char internalProgram[] PROGMEM   = {
 		":2\n"
 		"#Earth regeneration - 8 m\n"
 		"rec 1179 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 1179 120\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 783 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 783 120\n"
 		"beep 500\n"
 		"off \n"
@@ -1642,7 +1661,7 @@ const char internalProgram[] PROGMEM   = {
 		"#Antisterss & meditation 16 m\n"
 		"freq 1200 20\n"
 		"freq 1179 150\n"
-		"chp 1\n"
+		"chp 11\n"
 		"freq 1166 20\n"
 		"freq 1133 20\n"
 		"freq 1100 20\n"
@@ -1655,10 +1674,10 @@ const char internalProgram[] PROGMEM   = {
 		"freq 866 20\n"
 		"freq 833 20\n"
 		"freq 800 20\n"
-		"chp 0\n"
+		"chp 00\n"
 		"freq 800 20\n"
 		"freq 783 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"freq 766 20\n"
 		"freq 733 20\n"
 		"freq 700 20\n"
@@ -1671,7 +1690,7 @@ const char internalProgram[] PROGMEM   = {
 		"freq 466 20\n"
 		"freq 433 20\n"
 		"freq 400 20\n"
-		"chp 0\n"
+		"chp 00\n"
 		"freq 366 20\n"
 		"freq 333 20\n"
 		"freq 300 20\n"
@@ -1741,14 +1760,14 @@ void message (String messageText, byte row ) {
 void progressBar (long totalTimeSec, long leftTimeSec) {
 //Showing progress with left time in formats: 999m (greater then 10min), 120s (less then 10min)
 
-unsigned long _lastProgressBarShowed = millis();
 
 #ifdef SERIAL_DEBUG
 	Serial.print("progressBar1: ");
-	//Serial.println(totalTimeSec);
+	Serial.print(totalTimeSec);
+	Serial.print(" ");
 	Serial.println(leftTimeSec);
 #endif
-	Serial.println(leftTimeSec);
+
 
 	//Show ones a second
 	if ( millis() > _lastProgressBarShowed + 1000 ) {
@@ -1787,14 +1806,14 @@ unsigned long _lastProgressBarShowed = millis();
 			//Serial.println(percent);
 #endif
 			lcd.setCursor(5,LCD_PBAR_LINE);
-			for (int i=0; i<(percent/10);i++) lcd.write(255); //lcd.write('#');
+			for (int i=0; i<(percent/13);i++) lcd.write(255); //lcd.write('#');
 
-			lcd.print("          ");
+			lcd.print("        ");
 
 			lcd.setCursor(4,LCD_PBAR_LINE);
 			lcd.write('[');
 
-			lcd.setCursor(15,LCD_PBAR_LINE);
+			lcd.setCursor(13,LCD_PBAR_LINE);
 			lcd.write(']');
 		}
 
