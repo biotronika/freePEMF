@@ -12,13 +12,13 @@
  */
 
 #include <Arduino.h>  	// For eclipse IDE only
-#define SERIAL_DEBUG     // Uncomment this line for debug purpose
+//#define SERIAL_DEBUG     // Uncomment this line for debug purpose
 #define NO_CHECK_BATTERY // Uncomment this line for debug purpose
 
 
 #define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
-#define SOFT_VER "2018-12-18"
+#define SOFT_VER "2018-12-20"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -48,7 +48,7 @@
 
 #ifdef FREEPEMF_DUO
  #define redPin   PC6	// not used
- #define greenPin PB5 	// LED_BUILTIN	// on board led
+ #define greenPin LED_BUILTIN	// on board led
  #define coilAuxPin 12	// ENB driver pin for NANO 5.0
 
  #define SCL A5  		// I2C LCD interface
@@ -78,7 +78,7 @@
 //bioZAP
 #define WELCOME_SCR "bioZAP interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
-#define PROGRAM_BUFFER 256  // SRAM buffer size, used for script loading
+#define PROGRAM_BUFFER 64  // SRAM buffer size, used for script loading
 #define MAX_CMD_PARAMS 4    // Count of command parameters
 
 #ifdef FREEPEMF_DUO
@@ -454,16 +454,16 @@ String formatLine(int adr, String line){
 int executeCmd(String cmdLine, boolean directMode){
 // Main interpreter function
 
+	getParams(cmdLine);
 
 #ifdef FREEPEMF_DUO
 	//TODO: Wait should be not displayed
-	//cmdLine.replace('\n', ' ');
+	cmdLine.replace('\n', ' ');
 	message (cmdLine );
 	//message ("test");
 	//if ( param[0] != "wait" ) message (cmdLine);
 #endif
 
-	getParams(cmdLine);
 
     if ( param[0]=="mem" ) { 
 // Upload terapy to EEPROM
@@ -888,6 +888,7 @@ void exe(int &adr, int prog){
 
   			//Serial.print("$");
   			Serial.print(line);
+  			//message(line);
 
   			executeCmd(line);
 
@@ -1235,8 +1236,6 @@ unsigned long inline checkPause(){
 
 		// turn coil off
 		out(B00);
-		//digitalWrite(coilPin, LOW);
-
 
 		digitalWrite(greenPin, HIGH);   // turn LED on
 
@@ -1762,10 +1761,10 @@ void progressBar (long totalTimeSec, long leftTimeSec) {
 
 
 #ifdef SERIAL_DEBUG
-	Serial.print("progressBar1: ");
-	Serial.print(totalTimeSec);
-	Serial.print(" ");
-	Serial.println(leftTimeSec);
+	//Serial.print("progressBar1: ");
+	//Serial.print(totalTimeSec);
+	//Serial.print(" ");
+	//Serial.println(leftTimeSec);
 #endif
 
 
