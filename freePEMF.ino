@@ -11,14 +11,15 @@
  * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
  */
 
-#include <Arduino.h>  	// For eclipse IDE only
-//#define SERIAL_DEBUG     // Uncomment this line for debug purpose
-#define NO_CHECK_BATTERY // Uncomment this line for debug purpose
+#include <Arduino.h>  		// For eclipse IDE only
+//#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
+//#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
+//#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
 
 
-#define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
+//#define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
-#define SOFT_VER "2018-12-20"
+#define SOFT_VER "2018-12-22"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -114,6 +115,8 @@ byte pwm = 50;							// Duty cycle of pulse width modulation: 1-99 %
 int minBatteryLevel = 0; 
 boolean Xoff = false;
 
+boolean btOn = false;
+
 //use global variables locally, for saving RAM memory
 byte b;
 int i;
@@ -132,9 +135,9 @@ const unsigned long checkDeltaBatteryIncreasingVoltageTime = 600000UL;  // Durin
 const unsigned long pauseTimeOut = 600000UL;                            // 600000 Time of waiting in pause state as turn power off. (60000 = 1 min.)
 #define btnBtMode 5000UL
 #define btnTimeOut 5000UL 												// Choose therapy program time out. Counted form released button.
-#define btnHrCalibrationMode 12000UL                                	// Choose therapy program time out. Counted form released button.
+#define btnHrCalibrationMode 10000UL                                	// Choose therapy program time out. Counted form released button.
 
-boolean outputDir = false;
+//boolean outputDir = false;
 
 //Outputs state
 byte coilsState = B00; // Aux,Main  0=OFF, 1=ON
@@ -198,6 +201,9 @@ void setup() {
 	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
 
 	pinMode(btPowerPin, OUTPUT);
+#ifdef BT_HC05
+	digitalWrite(btPowerPin, HIGH); //HIGH = off
+#endif
 
 	pinMode(int1Pin,  OUTPUT);   // Direction L298N (ch1)
 	pinMode(int2Pin,  OUTPUT);   // Direction L298N (ch1)
@@ -248,11 +254,8 @@ void setup() {
 	lcd.init();
 	lcd.backlight();
 
-	if (programNo) {
-		message ("freePEMF duo", 0);
-	} else {
-		message ("freePEMF duo  PC", 0);
-	}
+
+	message ("freePEMF duo", 0);
 
     message (SOFT_VER, 1);
 
@@ -266,12 +269,29 @@ void setup() {
 		ul = millis() - startInterval; //Pressed button period
 
 		if (ul > btnHrCalibrationMode) {
-			programNo =4; //Coil measurement test
 			digitalWrite(redPin, HIGH);
+			programNo = 4; //HRM calibration
+			btOn=false;
+#ifdef FREEPEMF_DUO
+			message ("HRM calibration", 0);
+#endif
+			beep(200);
+			while(digitalRead(btnPin));
+		}
 
-		} else if (ul > btnBtMode){
+
+		if ((ul > btnBtMode) && programNo && programNo!=4){
 			digitalWrite(btPowerPin,HIGH);
-
+#ifdef BT_HC05
+			digitalWrite(btPowerPin,LOW);//LOW=on
+#endif
+			digitalWrite(redPin, HIGH);
+			programNo = 0; //PC mode via BT
+			btOn=true;
+#ifdef FREEPEMF_DUO
+			message ("freePEMF duo", 0);
+#endif
+			beep(200);
 		}
 
 	}
@@ -459,9 +479,9 @@ int executeCmd(String cmdLine, boolean directMode){
 #ifdef FREEPEMF_DUO
 	//TODO: Wait should be not displayed
 	cmdLine.replace('\n', ' ');
-	message (cmdLine );
+	//message (cmdLine );
 	//message ("test");
-	//if ( param[0] != "wait" ) message (cmdLine);
+	if ( (param[0] != "wait") && (param[0] != "mem") ) message (cmdLine);
 #endif
 
 
@@ -1628,6 +1648,7 @@ const char internalProgram[] PROGMEM   = {
 
 		":1\n"
 		"#Standard program 13 m\n"
+		"wait 2000\n"
 		"rec 1179 120\n"
 		"chp 11\n"
 		"rec 783 120\n"
@@ -1646,6 +1667,7 @@ const char internalProgram[] PROGMEM   = {
 
 		":2\n"
 		"#Earth regeneration - 8 m\n"
+		"wait 2000\n"
 		"rec 1179 120\n"
 		"chp 11\n"
 		"rec 1179 120\n"
@@ -1658,6 +1680,7 @@ const char internalProgram[] PROGMEM   = {
 
 		":3\n"
 		"#Antisterss & meditation 16 m\n"
+		"wait 2000\n"
 		"freq 1200 20\n"
 		"freq 1179 150\n"
 		"chp 11\n"
@@ -1754,6 +1777,26 @@ void message (String messageText, byte row ) {
 	lcd.print( "                " );
 	lcd.setCursor(0, row);
 	lcd.print( messageText );
+
+	if ((row==LCD_PBAR_LINE) && (programNo==0) ){
+		lcd.setCursor(14, row);
+		if (btOn){
+			lcd.print( "BT" );
+		} else {
+			lcd.print( "PC" );
+		}
+
+	}
+
+	if (row==LCD_MESSAGE_LINE){
+
+		lcd.setCursor(15, row);
+		lcd.print( 'B' );
+	}
+
+
+
+
 }
 
 void progressBar (long totalTimeSec, long leftTimeSec) {
