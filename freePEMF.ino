@@ -1,36 +1,76 @@
 /*
- * One Arduino ino file of freePEMF firmware.
+ * One Arduino firmware file for freePEMF and freePEMF duo
+ * Supports: NANO 4.2  4.3  5.0 hardware & XM-15B bluetooth serial ext.
  *
- * Chris Czoba (c) krzysiek@biotronika.pl
- * See: biotronics.eu or biotronika.pl (for Polish)
+ * Chris Czoba (copyleft) krzysiek@biotronika.pl
+ * See: biotronics.eu or biotronika.pl
+ *
+ * License: https://github.com/biotronika/mini-freePEMF
  *
  * New software version running bioZAP 2018-10-21
  * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
  */
 
-//#define SERIAL_DEBUG     //Uncomment this line for debug purpose
-//#define NO_CHECK_BATTERY //Uncomment this line for debug purpose
+#include <Arduino.h>  		// For eclipse IDE only
+//#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
+//#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
+//#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
 
-#define HRDW_VER "NANO 4.3"
-// Compatible with NANO 4.2
-#define SOFT_VER "2018-12-10"
+
+//#define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
+
+#define SOFT_VER "2018-12-22"
+
+#ifdef FREEPEMF_DUO
+ #define HRDW_VER "NANO 5.0" // freePEMF duo
+ #include <Wire.h>
+ #include <LiquidCrystal_I2C.h>
+#else
+ #define HRDW_VER "NANO 4.3"	// standard with IRF540  or L298N driver
+#endif
+
 
 #include <EEPROM.h>
 
 //Pin definition
-#define coilPin 5	// Coil driver IRF540 (NANO 4.2 only) ENA driver pin for NANO 4.3
-#define powerPin 4	// Power relay
-#define relayPin 9	// Direction relay - NANO 4.2 only (4.3 does not have direction relay)
-#define int1Pin A1	// NANO 4.3 supports L298N driver INT1 pin
-#define int2Pin A0	// INT2 driver pin
+
+#define powerPin 4	// Power
 #define buzzPin 10	// Buzzer
 #define btnPin 3	// Power On-Off / Pause / Change program button
-#define redPin 12	// Red LED
-#define greenPin 11	// Green LED
 #define hrmPin 2	// Biofeedback HR meter on 3th plug pin.
 
+#define coilPin 5	// Coil driver IRF540 (NANO 4.2) or ENA driver pin for NANO 4.3
+#define relayPin 9	// Direction relay - NANO 4.2 only (4.3 does not have direction relay)
+
+#define int1Pin A0	// NANO 4.3 and 5.0 supports L298N driver INT1 (ch 1) driver pin
+#define int2Pin A1	// INT2 (ch 1)
+#define int3Pin A2	// INT3 (ch 2)
+#define int4Pin A3	// INT4 (ch 2)
+
+#ifdef FREEPEMF_DUO
+ #define redPin   PC6	// not used
+ #define greenPin LED_BUILTIN	// on board led
+ #define coilAuxPin 12	// ENB driver pin for NANO 5.0
+
+ #define SCL A5  		// I2C LCD interface
+ #define SDA A4
+
+#else
+ #define redPin 12		// Red LED
+ #define greenPin 11	// Green LED
+
+#endif
+
+
+//Bluetooth
+//#define btStatePin 7	//OUT Change to AT mode if is high during power is on.
+//#define btEnPin	8	//IN
+#define btPowerPin	6	//OUT
+
+
+
 //Battery staff
-#define batPin PIN_A7                 // Analog-in battery level
+#define batPin A7                 // Analog-in battery level
 #define BATTERY_VOLTAGE_RATIO 0.153   // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
 #define MIN_BATTERY_LEVEL 90          // 90 means 9.0 V  (x10), less then that turn off
 #define USB_POWER_SUPPLY_LEVEL 65     // Maximum USB voltage level means 6.5V
@@ -39,22 +79,33 @@
 //bioZAP
 #define WELCOME_SCR "bioZAP interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
-#define PROGRAM_BUFFER 500  // SRAM buffer size, used for script loading
+#define PROGRAM_BUFFER 64  // SRAM buffer size, used for script loading
 #define MAX_CMD_PARAMS 4    // Count of command parameters
-#define LCD_SCREEN_LINE -1  // LCD user line number, -1 = no LCD
+
+#ifdef FREEPEMF_DUO
+ #define LCD_SCREEN_LINES 2 // LCD user line number, -1 = no LCD
+ #define LCD_MESSAGE_LINE 1	// Default lcd line for bioZAP messages
+ #define LCD_PBAR_LINE 0	// Default lcd for progress bar and heart rate
+
+#else
+ #define LCD_SCREEN_LINES -1 // LCD user lines number, -1 = no LCD
+#endif
+
 #define MIN_FREQ_OUT 1      //  0.01 Hz
 #define MAX_FREQ_OUT 6100   // 61.00 Hz for software function
-#define MAX_FREQ_TIMER 1600000	// 16kHz dla timera
+#define MAX_FREQ_TIMER 1600000	// 16kHz for timer
 #define SCAN_STEPS 20       // For scan function purpose - default steps
-#define MAX_LABELS 9        // jump labels maximum
+#define MAX_LABELS 9        // Number of jump labels
 
-//TODO delete
-//#define XON 17  //0x11
-//#define XOFF 19 //0x13
 
+#ifdef FREEPEMF_DUO
+LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
+//LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+unsigned long _lastProgressBarShowed = millis();
+#endif
 
 //bioZAP
-String inputString = "";                // a string to hold incoming serial data
+String inputString = "";                // A string to hold incoming serial data
 String line;
 String param[MAX_CMD_PARAMS];           // param[0] = cmd name
 boolean stringComplete = false;         // whether the string is complete
@@ -63,6 +114,8 @@ unsigned long lastFreq = MIN_FREQ_OUT;  // Uses scan function
 byte pwm = 50;							// Duty cycle of pulse width modulation: 1-99 %
 int minBatteryLevel = 0; 
 boolean Xoff = false;
+
+boolean btOn = false;
 
 //use global variables locally, for saving RAM memory
 byte b;
@@ -80,11 +133,18 @@ int adr=0;								// Script interpreter pointer
 const unsigned long checkDeltaBatteryIncreasingVoltageTime = 600000UL;  // During charging battery minimum increasing voltage after x milliseconds.
                                                                         //  If after the x period the same voltage, green led starts lights. 
 const unsigned long pauseTimeOut = 600000UL;                            // 600000 Time of waiting in pause state as turn power off. (60000 = 1 min.)
-const unsigned int btnTimeOut = 5000UL;                                 // Choose therapy program time out. Counted form released button.
-boolean outputDir = false;
-byte coilState = LOW;
+#define btnBtMode 5000UL
+#define btnTimeOut 5000UL 												// Choose therapy program time out. Counted form released button.
+#define btnHrCalibrationMode 10000UL                                	// Choose therapy program time out. Counted form released button.
+
+//boolean outputDir = false;
+
+//Outputs state
+byte coilsState = B00; // Aux,Main  0=OFF, 1=ON
+byte relayState = B00; // Aux,Main  0=NORMAL, 1=CHANGED
+
 byte pin3State = LOW;
-byte relayState =LOW;
+
 unsigned long pauseTime =0; 
  
 volatile boolean pause = false; // true = pause on
@@ -107,6 +167,11 @@ void checkBattLevel();
 void btnEvent();
 int readFlashLine(int fromAddress, String &lineString);
 
+#ifdef FREEPEMF_DUO
+void progressBar (long totalTimeSec, long leftTimeSec);
+void message (String messageText, byte row = LCD_MESSAGE_LINE);
+#endif
+
 //bioZAP functions
 void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
  int jump(int labelNumber, int &adr);
@@ -119,26 +184,42 @@ void exe(int &adr, int prog=0);
  int mem(String param);
 void ls();
 void rm();
-void chp(byte outputDir);
+void chp(byte relayState);
+void out(byte coilsState);
 
  
 void setup() {  
               
 	// Initialize the digital pin as an in/output
-	pinMode(coilPin,  OUTPUT);  // Coil driver
+	pinMode(coilPin,  OUTPUT);  // Mail coil ch1
 	pinMode(powerPin, OUTPUT);  // Power relay
 	pinMode(greenPin, OUTPUT);  // LED on board
 	pinMode(redPin,   OUTPUT);  // LED on board
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
-	pinMode(int1Pin, OUTPUT);   // Direction L298N
-	pinMode(int2Pin, OUTPUT);   // Direction L298N
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
 	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
 
+	pinMode(btPowerPin, OUTPUT);
+#ifdef BT_HC05
+	digitalWrite(btPowerPin, HIGH); //HIGH = off
+#endif
+
+	pinMode(int1Pin,  OUTPUT);   // Direction L298N (ch1)
+	pinMode(int2Pin,  OUTPUT);   // Direction L298N (ch1)
+
+#ifdef FREEPEMF_DUO
+	pinMode(int3Pin,  OUTPUT);   // Direction L298N (ch2)
+	pinMode(int4Pin,  OUTPUT);   // Direction L298N (ch2)
+	pinMode(coilAuxPin,  OUTPUT);   // Auxiliary coil ch2
+
+#endif
+
 	//bioZAP
 	// Initialize serial communication to PC communication
 	Serial.begin(9600);
+
+
 
 	// Reserve the memory for inputString:
 	inputString.reserve(65); //NANO serial buffer has 63 bytes
@@ -167,26 +248,62 @@ void setup() {
 
 	//Turn on green LED
 	digitalWrite(greenPin, HIGH);
+
+#ifdef FREEPEMF_DUO
+	//Initialize LCD display
+	lcd.init();
+	lcd.backlight();
+
+
+	message ("freePEMF duo", 0);
+
+    message (SOFT_VER, 1);
+
+#endif
+
 	beep(200);
   
 	//Wait until turn-on button release
 	startInterval = millis();
 	while (digitalRead(btnPin)==HIGH){
-		if ( millis() > ( startInterval + btnTimeOut ) ) {
-			programNo = 4; //Coil measurement test
+		ul = millis() - startInterval; //Pressed button period
+
+		if (ul > btnHrCalibrationMode) {
 			digitalWrite(redPin, HIGH);
-      
+			programNo = 4; //HRM calibration
+			btOn=false;
+#ifdef FREEPEMF_DUO
+			message ("HRM calibration", 0);
+#endif
+			beep(200);
+			while(digitalRead(btnPin));
 		}
+
+
+		if ((ul > btnBtMode) && programNo && programNo!=4){
+			digitalWrite(btPowerPin,HIGH);
+#ifdef BT_HC05
+			digitalWrite(btPowerPin,LOW);//LOW=on
+#endif
+			digitalWrite(redPin, HIGH);
+			programNo = 0; //PC mode via BT
+			btOn=true;
+#ifdef FREEPEMF_DUO
+			message ("freePEMF duo", 0);
+#endif
+			beep(200);
+		}
+
 	}
-  
+
 	delay(10);
 
-	//Initialization of NANO 4.3 driver
-	chp(0);
+	//Initialization of NANO 4.3 and 5.0
+	chp(relayState=B00);
 
   
 	//Define minimum battery level uses in working for performance purpose.
-	minBatteryLevel /*0-1023*/= (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
+	minBatteryLevel = (MIN_BATTERY_LEVEL / BATTERY_VOLTAGE_RATIO) ;
 
                                 
  if (programNo) { 
@@ -204,6 +321,20 @@ void setup() {
             //Signals count
             beep(80); delay(150);
           }
+
+#ifdef FREEPEMF_DUO
+
+          switch (programNo) {
+
+          case 1: message ("Demo or user prg" ); break;
+
+          case 2: message ("Earth rhythm" ); break;
+
+          case 3: message ("Antistrs & meditn" ); break;
+
+          }
+
+#endif
 
           //Wait until button is pressed
           while(digitalRead(btnPin));
@@ -224,6 +355,8 @@ void setup() {
     
     //Power on
     digitalWrite(powerPin, HIGH);
+
+
      
     Serial.println(WELCOME_SCR);
     Serial.print("Device freePEMF ");
@@ -276,6 +409,7 @@ void loop() {
 
 		case 4:
 		//ON-OFF coil by pressing the button
+		//TODO: HRM calibration
 
 			digitalWrite(redPin, LOW);
 			while(1) {
@@ -293,14 +427,9 @@ void loop() {
 							off();
 						}
 
-						if (coilState == LOW) {
-							coilState = HIGH;
-						} else {
-							coilState = LOW;
-						}
 
-						digitalWrite(coilPin, coilState);   // turn coil on/off
-						digitalWrite(redPin, coilState);   // turn LED on/off
+						out(coilsState^=B11);
+						digitalWrite(redPin, coilsState & 1);   // turn LED on/off
 
 				}
 			} break;
@@ -313,6 +442,7 @@ void loop() {
 				//Restart timeout interval to turn off.
 				startInterval=millis();
 
+				//message (inputString);
 				executeCmd(inputString, true);
 				Serial.print('>'); //Cursor for new command
 
@@ -345,6 +475,14 @@ int executeCmd(String cmdLine, boolean directMode){
 // Main interpreter function
 
 	getParams(cmdLine);
+
+#ifdef FREEPEMF_DUO
+	//TODO: Wait should be not displayed
+	cmdLine.replace('\n', ' ');
+	//message (cmdLine );
+	//message ("test");
+	if ( (param[0] != "wait") && (param[0] != "mem") ) message (cmdLine);
+#endif
 
 
     if ( param[0]=="mem" ) { 
@@ -469,15 +607,13 @@ int executeCmd(String cmdLine, boolean directMode){
 // Change output signal polarity
     
     	if (param[1]=="~") {
+    		relayState ^= B11;
 
-			  if (relayState) {
-				  chp(LOW);
-			  } else {
-				  chp(HIGH);
-			  }
+    	} else {
+    		relayState = byte(param[1].toInt()) & B11;
 
-    	} else 	chp(byte(param[1].toInt()));
-
+    	}
+		chp(relayState); // Bxx:  Aux, Main;
     	Serial.println("OK");
 
 
@@ -508,40 +644,30 @@ int executeCmd(String cmdLine, boolean directMode){
 // Change pwm duty cycle
 
     	pwm = constrain( param[1].toInt(), 1, 99) ;
-
     	Serial.println("OK");
 
 
     } else if (param[0]=="out"){
 // On-off coil
-    	switch (param[1].charAt(0)) {
-    		case '1':
-    	    	coilState = HIGH;
-    	    	Serial.println("OK");
-    	    break;
+		i = param[1].toInt();
+		if (i==11) i=3;
+		if (i==10) i=2;
 
-    		case '0':
-    	    	coilState = LOW;
-    	    	Serial.println("OK");
-    	    break;
+    	if (param[1]=="~"){
+			coilsState = ~coilsState & B11;
+			out(coilsState);
+			Serial.println("OK");
 
-    		case '~':
-    			if (coilState == HIGH){
-    				coilState=LOW;
-    			} else {
-    				coilState=HIGH;
-    			}
+    	} else if (i<=B11){
+			coilsState=i;
+			out(coilsState);
+			Serial.println("OK");
 
-	    	break;
+    	} else {
+			Serial.print("Error: wrong out parameter: ");
+			Serial.println(param[1]);
 
-    		default:
-
-				Serial.print("Error: wrong out parameter: ");
-	    		Serial.println(param[1]);
-	    	break;
     	}
-
-    	digitalWrite(coilPin, coilState);
 
 
     } else if (param[0]=="pin3"){
@@ -552,33 +678,26 @@ int executeCmd(String cmdLine, boolean directMode){
     	switch (param[1].charAt(0)) {
     		case '1':
     			pin3State = HIGH;
-    	    	Serial.println("OK");
     	    break;
 
     		case '0':
     			pin3State = LOW;
-    	    	Serial.println("OK");
     	    break;
 
     		case '~':
-    			if (pin3State == HIGH){
-    				pin3State=LOW;
-    			} else {
-    				pin3State=HIGH;
-    			}
-
+    			pin3State ^= B1;
 	    	break;
 
     		default:
-
 				Serial.print("Error: wrong pin3 parameter: ");
 	    		Serial.println(param[1]);
 	    	break;
 
     	}
-
+//TODO: pin3 function create
     	digitalWrite(hrmPin, pin3State);
     	digitalWrite(redPin, pin3State);
+    	Serial.println("OK");
 
     } else if (param[0]=="freq"){
 // Generate square signal - freq [freq] [time_sec]
@@ -789,6 +908,7 @@ void exe(int &adr, int prog){
 
   			//Serial.print("$");
   			Serial.print(line);
+  			//message(line);
 
   			executeCmd(line);
 
@@ -1073,34 +1193,34 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 		unsigned long serialStartMillis = millis();
 		unsigned long startIntervalMillis = millis();
-		//unsigned long pausePressedMillis;
 
-		coilState=HIGH;
-		digitalWrite(coilPin, coilState);   // turn coil off
-		digitalWrite(greenPin, coilState);   // turn LED off
+		out(coilsState=B11); // turn coil on
+		digitalWrite(greenPin, HIGH);   // turn LED on
 
 		while(millis()< uptime) {
-		  //time loop
+			//time loop
 
-			if (((millis() - startIntervalMillis) >= upInterval) && (coilState==HIGH)) {
+#ifdef FREEPEMF_DUO
+			progressBar (period, (uptime-millis())/1000);
+#endif
+
+			if (((millis() - startIntervalMillis) >= upInterval) && (coilsState>0)) {
 
 				//Save start time interval
 				startIntervalMillis = millis();
 
-				coilState=LOW;
-				digitalWrite(coilPin, coilState);   // turn coil off
-				digitalWrite(greenPin, coilState);   // turn LED off
+				out(coilsState=B00); // turn coil off
+				digitalWrite(greenPin, LOW);   // turn LED off
 
 			}
 
-			if (((millis() - startIntervalMillis) >= downInterval) && (coilState==LOW)) {
+			if (((millis() - startIntervalMillis) >= downInterval) && (coilsState==0)) {
 
 				//Save start time interval
 				startIntervalMillis = millis();
 
-				coilState=HIGH;
-				digitalWrite(coilPin, coilState);   // turn coil on
-				digitalWrite(greenPin, coilState);   // turn LED on
+				out(coilsState=B11); // turn coil on
+				digitalWrite(greenPin, HIGH);   // turn LED on
 
 			}
 
@@ -1118,7 +1238,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				serialStartMillis = millis();
 			}
 		}
-		digitalWrite(coilPin, LOW);     // turn coil off
+		out(coilsState=B00); // turn coil off
 		digitalWrite(greenPin, HIGH);   // turn LED on
 	}
 
@@ -1133,7 +1253,10 @@ unsigned long inline checkPause(){
 
 		pausePressedMillis = millis();
 		beep(200);
-		digitalWrite(coilPin, LOW);     // turn coil off
+
+		// turn coil off
+		out(B00);
+
 		digitalWrite(greenPin, HIGH);   // turn LED on
 
 		while (pause){
@@ -1153,8 +1276,10 @@ unsigned long inline checkPause(){
 
 
 		//Continue
-		digitalWrite(coilPin, coilState);    // turn coil on
-		digitalWrite(greenPin, coilState);   // turn LED on/
+		out(coilsState);
+		//digitalWrite(coilPin, coilsState);    // turn coil on
+
+		digitalWrite(greenPin, coilsState);   // turn LED on/
 
 		//Return delta to work time correction
 		return millis()-pausePressedMillis;
@@ -1164,43 +1289,70 @@ unsigned long inline checkPause(){
 void off() {
   // Power off function
   
-  digitalWrite(coilPin, LOW);     // Turn coil off by making the voltage LOW
-  delay(20);
-  digitalWrite(relayPin, LOW);    // Relay off
-  digitalWrite(greenPin, LOW);    // Green LED off
+	out(coilsState=B00); 		// Turn coil off by making the voltage LOW
+	//digitalWrite(coilPin, LOW);     // Turn coil off by making the voltage LOW
+	delay(20);
+	chp(relayState=B00); // Relay off
+	//digitalWrite(relayPin, LOW);
+	digitalWrite(greenPin, LOW);    // Green LED off
 
-  digitalWrite(powerPin, LOW);  // Turn power off //If not USB power
+	digitalWrite(powerPin, LOW);  // Turn power off //If not USB power
 
-  while(digitalRead(btnPin)==HIGH); // Wait because still power on
+	while(digitalRead(btnPin)==HIGH); // Wait because still power on
 
-  //If USB PC connection is plugged to arduino pcb cannot turn power off
-  //detachInterrupt(digitalPinToInterrupt(btnPin));
+	//If USB PC connection is plugged to arduino pcb cannot turn power off
+	//detachInterrupt(digitalPinToInterrupt(btnPin));
   
-  while(1); //forever loop
+	while(1); //forever loop
   
 }
 
-void chp(byte outputDir){
-  //Change output polarity
+void chp(byte relayState){
+	//Change output polarity
+	// bits Bxx:  Aux, Main;
 
-  digitalWrite(coilPin, LOW);  // turning coil off
-  
-  relayState=outputDir;
+	//turn both outputs off
+	out(0);
 
-  //NANO 4.2 direction relay
-  digitalWrite(relayPin, relayState);
+	//NANO 4.2 direction relay
+	digitalWrite(relayPin, relayState & B01);
 
-  //NANO 4.3 L298N driver
-  digitalWrite(int1Pin, relayState);
+	//NANO 4.3 L298N driver
+	digitalWrite(int1Pin,  relayState & B01  );
+	digitalWrite(int2Pin, (relayState ^ B01) & B01 );
 
-  if (relayState) {
-	  digitalWrite(int2Pin, LOW);
-  } else {
-	  digitalWrite(int2Pin, HIGH);
-  }
+#ifdef SERIAL_DEBUG
+	Serial.print("relayState ");
+	Serial.print(relayState);
+	Serial.print("  Main: ");
+	Serial.print(relayState & B01);
+	Serial.print(" ");
+	Serial.print((relayState ^ B01) & B01);
+	Serial.print(" Aux: ");
+	Serial.print((relayState & B10) >> 1);
+	Serial.print(" ");
+	Serial.println((relayState ^ B10) >> 1);
+#endif
 
+	//NANO 5.0 L298 driver - Auxiliary channel
+	digitalWrite(int3Pin, (relayState & B10) >> 1 );
+	digitalWrite(int4Pin, (relayState ^ B10) >> 1 );
 
+}
 
+void out(byte coilsState){
+	//Change output state on-off
+	// bits Bxx:  Aux, Main;
+#ifdef SERIAL_DEBUG_
+	Serial.print("coilsState: ");
+	Serial.println(coilsState & B01);
+#endif
+
+	//turn both outputs off
+	digitalWrite(coilPin, coilsState & B01);
+#ifdef FREEPEMF_DUO
+	digitalWrite(coilAuxPin, (coilsState & B10) >> 1 );
+#endif
 
 }
 
@@ -1268,14 +1420,21 @@ void checkBattLevel() {
     Serial.print("Error: battery too low: ");
     Serial.println(bat());
     
-      
+#ifdef FREEPEMF_DUO
+    message("Battery is too low");
+#endif
+
     // red LED on
     digitalWrite(redPin, HIGH);
     digitalWrite(greenPin, LOW);   
       
     // Turn all off
-    digitalWrite(coilPin, LOW);    // Turn coil off by making the voltage LOW
-    digitalWrite(relayPin, LOW);    // Relay off
+    out(0); // Turn coil off by making the voltage LOW
+    relayState=0;
+    chp(relayState); // Relay off
+
+    //digitalWrite(coilPin, LOW);
+    //digitalWrite(relayPin, LOW);
         
     for (int x=0; x<10; x++){
       digitalWrite(buzzPin, HIGH);   // Turn buzzer on 
@@ -1298,6 +1457,10 @@ void rechargeBattery() {
   digitalWrite(redPin, HIGH);
   beep(200);
   digitalWrite(greenPin, LOW);
+
+#ifdef FREEPEMF_DUO
+		message ("battery charging");
+#endif
       
   unsigned long startInterval = millis();
   int startBatLevel = analogRead(batPin);
@@ -1309,6 +1472,10 @@ void rechargeBattery() {
 
         digitalWrite(greenPin, HIGH);
         beep(200);
+
+#ifdef FREEPEMF_DUO
+		message ("battery ready");
+#endif
         // ... and charge further.
         while (1);
       }
@@ -1325,11 +1492,11 @@ void btnEvent() {
    //unsigned long pressTime =0;
    
   if (digitalRead(btnPin)==HIGH){ 
-    pressTime = millis(); //Specific use of millis(). No increment in interruption function.
+    pressTime = millis(); //Specific use of millis(). No incrementing in interruption function.
   } else { 
     if (pressTime && (millis() - pressTime > 50)) pause=!pause;
     if (pressTime && (millis() - pressTime > 1000)) { 
-      for(unsigned int i=0; i<50000; i++) digitalWrite(buzzPin, HIGH); //Cannot use delay() therefore beep() function in innteruption
+      for(unsigned int i=0; i<50000; i++) digitalWrite(buzzPin, HIGH); //Cannot use delay() therefore beep() function in interruption
       digitalWrite(buzzPin, LOW);
       off(); 
     } 
@@ -1412,7 +1579,6 @@ void serialEvent() {
 
 //2018-11-18 elektros230: New and better version function readSerial2Buffer from multiZAP
 // Local echo is on
-
 boolean readSerial2Buffer(int &endBuffer) {
     int i ; //= 0; //buffer indicator
     char c;
@@ -1482,39 +1648,42 @@ const char internalProgram[] PROGMEM   = {
 
 		":1\n"
 		"#Standard program 13 m\n"
+		"wait 2000\n"
 		"rec 1179 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 783 120\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 2000 60\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 1500 60\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 1000 90\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 700 90\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 200 120\n"
 		"beep 500\n"
 		"off\n"
 
 		":2\n"
 		"#Earth regeneration - 8 m\n"
+		"wait 2000\n"
 		"rec 1179 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 1179 120\n"
-		"chp 0\n"
+		"chp 00\n"
 		"rec 783 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"rec 783 120\n"
 		"beep 500\n"
 		"off \n"
 
 		":3\n"
 		"#Antisterss & meditation 16 m\n"
+		"wait 2000\n"
 		"freq 1200 20\n"
 		"freq 1179 150\n"
-		"chp 1\n"
+		"chp 11\n"
 		"freq 1166 20\n"
 		"freq 1133 20\n"
 		"freq 1100 20\n"
@@ -1527,10 +1696,10 @@ const char internalProgram[] PROGMEM   = {
 		"freq 866 20\n"
 		"freq 833 20\n"
 		"freq 800 20\n"
-		"chp 0\n"
+		"chp 00\n"
 		"freq 800 20\n"
 		"freq 783 120\n"
-		"chp 1\n"
+		"chp 11\n"
 		"freq 766 20\n"
 		"freq 733 20\n"
 		"freq 700 20\n"
@@ -1543,7 +1712,7 @@ const char internalProgram[] PROGMEM   = {
 		"freq 466 20\n"
 		"freq 433 20\n"
 		"freq 400 20\n"
-		"chp 0\n"
+		"chp 00\n"
 		"freq 366 20\n"
 		"freq 333 20\n"
 		"freq 300 20\n"
@@ -1597,9 +1766,102 @@ int readFlashLine(int fromAddress, String &lineString){
 }
 
 
+/////////////////////////////// LCD SUPPORT ////////////////////////////////////
+
+#ifdef FREEPEMF_DUO
+
+void message (String messageText, byte row ) {
+// Show message in row line
+
+	lcd.setCursor(0, row);
+	lcd.print( "                " );
+	lcd.setCursor(0, row);
+	lcd.print( messageText );
+
+	if ((row==LCD_PBAR_LINE) && (programNo==0) ){
+		lcd.setCursor(14, row);
+		if (btOn){
+			lcd.print( "BT" );
+		} else {
+			lcd.print( "PC" );
+		}
+
+	}
+
+	if (row==LCD_MESSAGE_LINE){
+
+		lcd.setCursor(15, row);
+		lcd.print( 'B' );
+	}
 
 
 
 
+}
+
+void progressBar (long totalTimeSec, long leftTimeSec) {
+//Showing progress with left time in formats: 999m (greater then 10min), 120s (less then 10min)
 
 
+#ifdef SERIAL_DEBUG
+	//Serial.print("progressBar1: ");
+	//Serial.print(totalTimeSec);
+	//Serial.print(" ");
+	//Serial.println(leftTimeSec);
+#endif
+
+
+	//Show ones a second
+	if ( millis() > _lastProgressBarShowed + 1000 ) {
+		_lastProgressBarShowed = millis();
+
+
+		// Show progress bar in LCD_PBAR_LINE line - first is 0
+		lcd.setCursor( 0, LCD_PBAR_LINE );
+		if (leftTimeSec<36000) {
+			if (leftTimeSec>600){
+
+				lcd.print(  leftTimeSec/60 );
+				lcd.print("m   ");
+			} else if (leftTimeSec<60) {
+
+				lcd.print( leftTimeSec );
+				lcd.print("s   ");
+			} else {
+				//Minutes section
+				lcd.print( int( leftTimeSec/60 ) );
+				lcd.print(':');
+
+				//Seconds section
+				if (leftTimeSec % 60 <10) lcd.print('0');
+				lcd.print(leftTimeSec % 60);
+			}
+		}
+
+
+		if (totalTimeSec) {
+
+			byte percent = 5 + 100 * leftTimeSec / totalTimeSec;
+
+#ifdef SERIAL_DEBUG
+			//Serial.print("progressBar2 percent: ");
+			//Serial.println(percent);
+#endif
+			lcd.setCursor(5,LCD_PBAR_LINE);
+			for (int i=0; i<(percent/13);i++) lcd.write(255); //lcd.write('#');
+
+			lcd.print("        ");
+
+			lcd.setCursor(4,LCD_PBAR_LINE);
+			lcd.write('[');
+
+			lcd.setCursor(13,LCD_PBAR_LINE);
+			lcd.write(']');
+		}
+
+	}
+
+}
+
+
+#endif
