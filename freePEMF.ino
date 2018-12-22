@@ -33,6 +33,7 @@
 #include <EEPROM.h>
 
 //Pin definition
+
 #define powerPin 4	// Power
 #define buzzPin 10	// Buzzer
 #define btnPin 3	// Power On-Off / Pause / Change program button
