@@ -11,11 +11,12 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 ### To compile code and upload using Arduino IDE:
 1. Download freePEMF.ino file and put it into freePEMF folder (it must has exactly that name). 
 2. Open freePEMF.ino file in Arduino IDE.
-3. Check if you have EEPROM libraries already installed (Sketch->Include Library-> see on list: EEPROM and Wire).
-4. Install LiquidCrystal_I2C  (Sketch->Include Library->Manage Libraries..., Filter your search: LiquidCrystal_I2C, Find by Frank de Brabander, Choose version 1.1.2 and Install)
-7. Configure board (Tools->Board->Arduino Nano)  (Tools->Processor->ATmega328).
-8. Install Arduino Nano driver - **biotronics.eu** website: [CH341SER.ZIP]( https://biotronika.pl/sites/default/files/2016-12/CH341SER.ZIP).
-9. Configure serial port. Plug USB cable to PC and freePEMF or Adruino Nano board. Then Tools->Port->select proper COM port.
+3. Check if you have EEPROM and Wire libraries already installed (Sketch->Include Library-> see on list: EEPROM and Wire).
+4. Install LiquidCrystal_I2C  (Sketch->Include Library->Manage Libraries..., Filter your search: LiquidCrystal_I2C, Find ... by Frank de Brabander, Choose version 1.1.2 and Install)
+5. Configure board (Tools->Board->Arduino Nano)  (Tools->Processor->ATmega328).
+6. Install Arduino Nano driver - **biotronics.eu** website: [CH341SER.ZIP]( https://biotronika.pl/sites/default/files/2016-12/CH341SER.ZIP).
+7. Configure serial port. Plug USB cable to PC and freePEMF or Adruino Nano board. Then Tools->Port->select proper COM port.
+8. Uncomment proper directives e.g. #define FREEPEMF_DUO. For standard freePEMF default options are good.
 10. Compile and upload. Sketch->Upload. Wait until on down side of Arduino IDE window see **Done uploading**.
 
 
@@ -33,4 +34,3 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 
 #### DONE
 * during loading a therapy add voice signal after committing each part of script
-
