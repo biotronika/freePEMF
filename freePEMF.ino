@@ -17,7 +17,7 @@
 #define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
 #define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
-#define SOFT_VER "2018-12-22"
+#define SOFT_VER "2018-12-23"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
