@@ -14,10 +14,8 @@
 #include <Arduino.h>  		// For eclipse IDE only
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
-//#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
-
-
-//#define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
+#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
+#define FREEPEMF_DUO  //Uncheck for freePEMF duo or comment for standard freePEMF
 
 #define SOFT_VER "2018-12-22"
 
@@ -48,7 +46,7 @@
 #define int4Pin A3	// INT4 (ch 2)
 
 #ifdef FREEPEMF_DUO
- #define redPin   PC6	// not used
+ #define redPin   LED_BUILTIN  	// Not used,
  #define greenPin LED_BUILTIN	// on board led
  #define coilAuxPin 12	// ENB driver pin for NANO 5.0
 
