@@ -19,7 +19,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2018-12-23"
+#define SOFT_VER "2018-12-24"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -101,8 +101,13 @@
 #ifdef FREEPEMF_DUO
 LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
 //LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
-unsigned long _lastProgressBarShowed = millis();
+//unsigned long _lastProgressBarShowed = millis();
 #endif
+
+struct OutMode {
+	char mode = 'B';  //B=Both, M=Main, A=Auxiliary
+	byte mask = B11;  //B11,    B01,    B10
+};
 
 //bioZAP
 String inputString = "";                // A string to hold incoming serial data
@@ -114,14 +119,16 @@ unsigned long lastFreq = MIN_FREQ_OUT;  // Uses scan function
 byte pwm = 50;							// Duty cycle of pulse width modulation: 1-99 %
 int minBatteryLevel = 0; 
 boolean Xoff = false;
-
 boolean btOn = false;
+byte display = 1;
+OutMode outMode;
 
 //use global variables locally, for saving RAM memory
 byte b;
 int i;
 long l;
 unsigned long ul;
+char c;
 
 
 //bioZAP jump & labels
@@ -224,7 +231,17 @@ void setup() {
 	// Reserve the memory for inputString:
 	inputString.reserve(65); //NANO serial buffer has 63 bytes
 
+#ifdef FREEPEMF_DUO
+	//Initialize LCD display
+	lcd.init();
+	lcd.backlight();
 
+
+	message ("freePEMF duo", 0);
+
+    message (SOFT_VER, 1);
+
+#endif
   
 	if (bat() < USB_POWER_SUPPLY_LEVEL) {
 		//Detected USB PC connection
@@ -249,17 +266,7 @@ void setup() {
 	//Turn on green LED
 	digitalWrite(greenPin, HIGH);
 
-#ifdef FREEPEMF_DUO
-	//Initialize LCD display
-	lcd.init();
-	lcd.backlight();
 
-
-	message ("freePEMF duo", 0);
-
-    message (SOFT_VER, 1);
-
-#endif
 
 	beep(200);
   
@@ -646,6 +653,30 @@ int executeCmd(String cmdLine, boolean directMode){
     	pwm = constrain( param[1].toInt(), 1, 99) ;
     	Serial.println("OK");
 
+    } else if (param[0]=="disp"){
+#ifdef FREEPEMF_DUO
+    	c=param[1].charAt(0);
+
+    	switch (c){
+    	case '0':
+
+    		message("Display is off",LCD_PBAR_LINE);
+    		message("");
+    		display=0;
+    		Serial.println("OK");
+
+    	break;
+    	case '1':
+    		display=1;
+    		message("Display is on",LCD_PBAR_LINE);
+    		Serial.println("OK"); break;
+
+    	default:
+    		Serial.println("Error: wrong parameter.");
+    	}
+#else
+    	Serial.println("OK");
+#endif
 
     } else if (param[0]=="out"){
 // On-off coil
@@ -653,10 +684,19 @@ int executeCmd(String cmdLine, boolean directMode){
 		if (i==11) i=3;
 		if (i==10) i=2;
 
-    	if (param[1]=="~"){
+		c=param[1].charAt(0);
+		if (c=='a') c='A';
+		if (c=='b') c='B';
+		if (c=='m') c='M';
+
+    	if (c=='~'){
 			coilsState = ~coilsState & B11;
 			out(coilsState);
 			Serial.println("OK");
+
+    	} else if(c=='M' || c=='B' || c=='A') {
+    		out (c);
+    		Serial.println("OK");
 
     	} else if (i<=B11){
 			coilsState=i;
@@ -664,7 +704,7 @@ int executeCmd(String cmdLine, boolean directMode){
 			Serial.println("OK");
 
     	} else {
-			Serial.print("Error: wrong out parameter: ");
+			Serial.print("Error: wrong parameter: ");
 			Serial.println(param[1]);
 
     	}
@@ -689,7 +729,7 @@ int executeCmd(String cmdLine, boolean directMode){
 	    	break;
 
     		default:
-				Serial.print("Error: wrong pin3 parameter: ");
+				Serial.print("Error: wrong parameter: ");
 	    		Serial.println(param[1]);
 	    	break;
 
@@ -1119,6 +1159,8 @@ void freq(unsigned long _freq, long period, byte pwm) {
 	if (lastFreq>MAX_FREQ_OUT) {
 
 		//Use experimental time-counter generator
+		out('M');
+
 		xfreq(lastFreq, /*period,*/ pwm);
 
 		//Wait time
@@ -1128,7 +1170,14 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 			for( l = 0 ; l < period*10; l++ ) {
 				_delay_ms(100);
-				if (l % 10 == 0) Serial.print('.');
+				if (l % 10 == 0) {
+					Serial.print('.');
+#ifdef FREEPEMF_DUO
+				progressBar (period,period-(l)/10-1);
+#endif
+				}
+
+
 
 				// Battery level check
 				checkBattLevel(); //If too low then off
@@ -1136,6 +1185,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				//Green led flashing every one second
 				digitalWrite(greenPin, flashLED);
 				flashLED = !flashLED;
+
 
 
 				if (checkPause()) {
@@ -1157,6 +1207,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 			checkBattLevel(); //If too low then off
 
 			checkPause();
+
 
 		}
 
@@ -1194,15 +1245,12 @@ void freq(unsigned long _freq, long period, byte pwm) {
 		unsigned long serialStartMillis = millis();
 		unsigned long startIntervalMillis = millis();
 
-		out(coilsState=B11); // turn coil on
+		out(coilsState=outMode.mask); // turn coil on
 		digitalWrite(greenPin, HIGH);   // turn LED on
 
 		while(millis()< uptime) {
 			//time loop
 
-#ifdef FREEPEMF_DUO
-			progressBar (period, (uptime-millis())/1000);
-#endif
 
 			if (((millis() - startIntervalMillis) >= upInterval) && (coilsState>0)) {
 
@@ -1219,7 +1267,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				//Save start time interval
 				startIntervalMillis = millis();
 
-				out(coilsState=B11); // turn coil on
+				out(coilsState=outMode.mask); // turn coil on
 				digitalWrite(greenPin, HIGH);   // turn LED on
 
 			}
@@ -1236,7 +1284,12 @@ void freq(unsigned long _freq, long period, byte pwm) {
 			if (millis()-serialStartMillis >= 1000) { //one second
 				Serial.print('.');
 				serialStartMillis = millis();
+
+#ifdef FREEPEMF_DUO
+				progressBar (period, (uptime-millis())/1000);
+#endif
 			}
+
 		}
 		out(coilsState=B00); // turn coil off
 		digitalWrite(greenPin, HIGH);   // turn LED on
@@ -1345,14 +1398,31 @@ void out(byte coilsState){
 	// bits Bxx:  Aux, Main;
 #ifdef SERIAL_DEBUG_
 	Serial.print("coilsState: ");
-	Serial.println(coilsState & B01);
+	//Serial.println(coilsState & B01);
 #endif
 
-	//turn both outputs off
-	digitalWrite(coilPin, coilsState & B01);
-#ifdef FREEPEMF_DUO
-	digitalWrite(coilAuxPin, (coilsState & B10) >> 1 );
-#endif
+	switch (coilsState) {
+
+	case 'B': outMode.mask = B11; outMode.mode='B'; break;
+
+	case 'M': outMode.mask = B01; outMode.mode='M'; break;
+
+	case 'A': outMode.mask = B10; outMode.mode='A'; break;
+
+
+	default: // 0, 1, 10, 11, 10, ~, 3, 2
+
+		//turn both outputs
+		digitalWrite(coilPin, coilsState & B00000001);
+		//digitalWrite(coilPin, coilsState & B01);
+	#ifdef FREEPEMF_DUO
+		digitalWrite(coilAuxPin, (coilsState & B00000010) >> 1 );
+		//digitalWrite(coilAuxPin, (coilsState & B10) >> 1 );
+	#endif
+	}
+
+
+
 
 }
 
@@ -1459,7 +1529,10 @@ void rechargeBattery() {
   digitalWrite(greenPin, LOW);
 
 #ifdef FREEPEMF_DUO
-		message ("battery charging");
+	lcd.setCursor(0, LCD_MESSAGE_LINE);
+	lcd.print( "battery charging");
+	//TODO message
+		//message ("battery charging");
 #endif
       
   unsigned long startInterval = millis();
@@ -1474,7 +1547,11 @@ void rechargeBattery() {
         beep(200);
 
 #ifdef FREEPEMF_DUO
-		message ("battery ready");
+    	lcd.setCursor(0, LCD_MESSAGE_LINE);
+    	lcd.print( "battery ready   ");
+    	lcd.noBacklight();
+    	//TODO: message
+		//message ("battery ready");
 #endif
         // ... and charge further.
         while (1);
@@ -1772,26 +1849,28 @@ int readFlashLine(int fromAddress, String &lineString){
 
 void message (String messageText, byte row ) {
 // Show message in row line
+	if (display) {
 
-	lcd.setCursor(0, row);
-	lcd.print( "                " );
-	lcd.setCursor(0, row);
-	lcd.print( messageText );
+		lcd.setCursor(0, row);
+		lcd.print( "                " );
+		lcd.setCursor(0, row);
+		lcd.print( messageText );
 
-	if ((row==LCD_PBAR_LINE) && (programNo==0) ){
-		lcd.setCursor(14, row);
-		if (btOn){
-			lcd.print( "BT" );
-		} else {
-			lcd.print( "PC" );
+		if ((row==LCD_PBAR_LINE) && (programNo==0) ){
+			lcd.setCursor(14, row);
+			if (btOn){
+				lcd.print( "BT" );
+			} else {
+				lcd.print( "PC" );
+			}
+
 		}
 
-	}
+		if (row==LCD_MESSAGE_LINE){
 
-	if (row==LCD_MESSAGE_LINE){
-
-		lcd.setCursor(15, row);
-		lcd.print( 'B' );
+			lcd.setCursor(15, row);
+			lcd.print( outMode.mode );
+		}
 	}
 
 
@@ -1812,8 +1891,9 @@ void progressBar (long totalTimeSec, long leftTimeSec) {
 
 
 	//Show ones a second
-	if ( millis() > _lastProgressBarShowed + 1000 ) {
-		_lastProgressBarShowed = millis();
+	//if ( millis() > _lastProgressBarShowed + 1000 || mode ) {
+	//_lastProgressBarShowed = millis();
+	if (display) {
 
 
 		// Show progress bar in LCD_PBAR_LINE line - first is 0
