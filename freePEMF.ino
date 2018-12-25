@@ -13,7 +13,7 @@
 
 #include <Arduino.h>  		// For eclipse IDE only
 
-//#define FREEPEMF_DUO  		//Uncomment for freePEMF duo or comment that line for standard freePEMF device
+//#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or comment that line for standard freePEMF device
 //#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
