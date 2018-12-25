@@ -19,7 +19,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2018-12-24"
+#define SOFT_VER "2018-12-25"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -484,11 +484,10 @@ int executeCmd(String cmdLine, boolean directMode){
 	getParams(cmdLine);
 
 #ifdef FREEPEMF_DUO
-	//TODO: Wait should be not displayed
+
 	cmdLine.replace('\n', ' ');
-	//message (cmdLine );
-	//message ("test");
 	if ( (param[0] != "wait") && (param[0] != "mem") ) message (cmdLine);
+
 #endif
 
 
@@ -654,6 +653,7 @@ int executeCmd(String cmdLine, boolean directMode){
     	Serial.println("OK");
 
     } else if (param[0]=="disp"){
+// Turn display off in freePEMF duo for better performance
 #ifdef FREEPEMF_DUO
     	c=param[1].charAt(0);
 
@@ -679,7 +679,8 @@ int executeCmd(String cmdLine, boolean directMode){
 #endif
 
     } else if (param[0]=="out"){
-// On-off coil
+// On-off, change mode of coils
+
 		i = param[1].toInt();
 		if (i==11) i=3;
 		if (i==10) i=2;
@@ -799,7 +800,7 @@ void rm(){
 // Remove, clear script therapy from memory
 	EEPROM.put(0, '@');
 
-// Full version
+//TODO: Full version
 //	for(int i=0; i<PROGRAM_SIZE; i++){
 //		EEPROM.put(i, 255);
 		//if (!(i % 128)) Serial.print(".");
@@ -1086,9 +1087,6 @@ void xfreq(unsigned long _freq, /*long period,*/ byte pwm){
 
 
 	uint16_t prescaler = 1;
-	//unsigned long l;
-	//boolean flashLED = 1;
-
 
 	lastFreq =constrain( _freq, MAX_FREQ_OUT, MAX_FREQ_TIMER) ;
 
@@ -1235,17 +1233,11 @@ void freq(unsigned long _freq, long period, byte pwm) {
 			uptime = millis() + (-period);
 		}
 	
-#ifdef SERIAL_DEBUG
-		Serial.print("freq->upInterval: ");
-		Serial.println(upInterval);
-		Serial.print("freq->downInterval: ");
-		Serial.println(downInterval);
-#endif
 
 		unsigned long serialStartMillis = millis();
 		unsigned long startIntervalMillis = millis();
 
-		out(coilsState=outMode.mask); // turn coil on
+		out(coilsState = outMode.mask); // turn coil on
 		digitalWrite(greenPin, HIGH);   // turn LED on
 
 		while(millis()< uptime) {
@@ -1257,7 +1249,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				//Save start time interval
 				startIntervalMillis = millis();
 
-				out(coilsState=B00); // turn coil off
+				out(coilsState = B00); // turn coil off
 				digitalWrite(greenPin, LOW);   // turn LED off
 
 			}
@@ -1267,7 +1259,7 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				//Save start time interval
 				startIntervalMillis = millis();
 
-				out(coilsState=outMode.mask); // turn coil on
+				out(coilsState = outMode.mask); // turn coil on
 				digitalWrite(greenPin, HIGH);   // turn LED on
 
 			}
@@ -1323,19 +1315,14 @@ unsigned long inline checkPause(){
 		}
 		beep(200);
 
-		//Correct working time
-		//timeUp += millis()-pausePressedMillis;
-		//startIntervalMillis += millis()-pausePressedMillis;
-
-
 		//Continue
 		out(coilsState);
-		//digitalWrite(coilPin, coilsState);    // turn coil on
 
 		digitalWrite(greenPin, coilsState);   // turn LED on/
 
 		//Return delta to work time correction
 		return millis()-pausePressedMillis;
+
 	} else	return 0;
 }
 
@@ -1343,26 +1330,21 @@ void off() {
   // Power off function
   
 	out(coilsState=B00); 		// Turn coil off by making the voltage LOW
-	//digitalWrite(coilPin, LOW);     // Turn coil off by making the voltage LOW
-	delay(20);
-	chp(relayState=B00); // Relay off
-	//digitalWrite(relayPin, LOW);
-	digitalWrite(greenPin, LOW);    // Green LED off
+	chp(relayState=B00); 		// Relay off
 
-	digitalWrite(powerPin, LOW);  // Turn power off //If not USB power
+	digitalWrite(greenPin, LOW);    // Green LED off for PC mode
+	digitalWrite(powerPin, LOW);  	// Turn power off //If not USB power
 
 	while(digitalRead(btnPin)==HIGH); // Wait because still power on
 
 	//If USB PC connection is plugged to arduino pcb cannot turn power off
-	//detachInterrupt(digitalPinToInterrupt(btnPin));
-  
 	while(1); //forever loop
   
 }
 
 void chp(byte relayState){
 	//Change output polarity
-	// bits Bxx:  Aux, Main;
+	// bits Bxx: HSb=Aux, LSb=Main;
 
 	//turn both outputs off
 	out(0);
@@ -1393,12 +1375,15 @@ void chp(byte relayState){
 
 }
 
+
+
 void out(byte coilsState){
 	//Change output state on-off
-	// bits Bxx:  Aux, Main;
+	// bits Bxx:  HSb=Aux, LSb=Main;
+
 #ifdef SERIAL_DEBUG_
 	Serial.print("coilsState: ");
-	//Serial.println(coilsState & B01);
+	Serial.println(coilsState );
 #endif
 
 	switch (coilsState) {
@@ -1410,21 +1395,16 @@ void out(byte coilsState){
 	case 'A': outMode.mask = B10; outMode.mode='A'; break;
 
 
-	default: // 0, 1, 10, 11, 10, ~, 3, 2
+	default: //coilsState: 0, 1, 10, 11, ~, 3, 2
 
-		//turn both outputs
+		// Change both outputs
 		digitalWrite(coilPin, coilsState & B00000001);
-		//digitalWrite(coilPin, coilsState & B01);
-	#ifdef FREEPEMF_DUO
+#ifdef FREEPEMF_DUO
 		digitalWrite(coilAuxPin, (coilsState & B00000010) >> 1 );
-		//digitalWrite(coilAuxPin, (coilsState & B10) >> 1 );
-	#endif
+#endif
 	}
-
-
-
-
 }
+
 
 int bat() {
 // Get battery voltage function
@@ -1432,6 +1412,7 @@ int bat() {
   return ( analogRead(batPin) * BATTERY_VOLTAGE_RATIO );
 
 }
+
 
 void wait( unsigned long period) {
 // wait [period_ms]
@@ -1478,10 +1459,12 @@ void beep( unsigned int period) {
   digitalWrite(buzzPin, LOW);
 }
 
+
 ///////////////  BIOzap END  ///////////////////
 
 void checkBattLevel() {
   //Check battery level
+
 #ifndef NO_CHECK_BATTERY
 
   if ( analogRead(batPin) < minBatteryLevel) { 
@@ -1520,6 +1503,7 @@ void checkBattLevel() {
 
 }
 
+
 void rechargeBattery() {
   //Recharges is plugged
   
@@ -1531,6 +1515,8 @@ void rechargeBattery() {
 #ifdef FREEPEMF_DUO
 	lcd.setCursor(0, LCD_MESSAGE_LINE);
 	lcd.print( "battery charging");
+	delay(5000);
+	lcd.noBacklight();
 	//TODO message
 		//message ("battery charging");
 #endif
@@ -1549,9 +1535,8 @@ void rechargeBattery() {
 #ifdef FREEPEMF_DUO
     	lcd.setCursor(0, LCD_MESSAGE_LINE);
     	lcd.print( "battery ready   ");
-    	lcd.noBacklight();
-    	//TODO: message
-		//message ("battery ready");
+    	lcd.backlight();
+
 #endif
         // ... and charge further.
         while (1);
@@ -1726,32 +1711,32 @@ const char internalProgram[] PROGMEM   = {
 		":1\n"
 		"#Standard program 13 m\n"
 		"wait 2000\n"
-		"rec 1179 120\n"
+		"freq 1179 120\n"
 		"chp 11\n"
-		"rec 783 120\n"
+		"freq 783 120\n"
 		"chp 00\n"
-		"rec 2000 60\n"
+		"freq 2000 60\n"
 		"chp 11\n"
-		"rec 1500 60\n"
+		"freq 1500 60\n"
 		"chp 00\n"
-		"rec 1000 90\n"
+		"freq 1000 90\n"
 		"chp 11\n"
-		"rec 700 90\n"
+		"freq 700 90\n"
 		"chp 00\n"
-		"rec 200 120\n"
+		"freq 200 120\n"
 		"beep 500\n"
 		"off\n"
 
 		":2\n"
 		"#Earth regeneration - 8 m\n"
 		"wait 2000\n"
-		"rec 1179 120\n"
+		"freq 1179 120\n"
 		"chp 11\n"
-		"rec 1179 120\n"
+		"freq 1179 120\n"
 		"chp 00\n"
-		"rec 783 120\n"
+		"freq 783 120\n"
 		"chp 11\n"
-		"rec 783 120\n"
+		"freq 783 120\n"
 		"beep 500\n"
 		"off \n"
 
