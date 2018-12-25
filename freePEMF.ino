@@ -32,7 +32,6 @@
 
 #include <EEPROM.h>
 
-//Pin definition
 
 #define powerPin 4	// Power
 #define buzzPin 10	// Buzzer
