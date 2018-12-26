@@ -19,7 +19,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2018-12-25"
+#define SOFT_VER "2018-12-26"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -121,6 +121,7 @@ boolean Xoff = false;
 boolean btOn = false;
 byte display = 1;
 OutMode outMode;
+long pbarTotalTimeSec, pbarLeftTimeSec;  //For total progress bar calculation
 
 //use global variables locally, for saving RAM memory
 byte b;
@@ -235,9 +236,7 @@ void setup() {
 	lcd.init();
 	lcd.backlight();
 
-
-	message ("freePEMF duo", 0);
-
+	message ("freePEMF duo", LCD_PBAR_LINE);
     message (SOFT_VER, 1);
 
 #endif
@@ -246,6 +245,10 @@ void setup() {
 		//Detected USB PC connection
 
 		programNo = 0; //PC
+
+#ifdef FREEPEMF_DUO
+		message ("freePEMF duo", LCD_PBAR_LINE); //Add PC mark
+#endif
     
 	} else if (digitalRead(btnPin)==HIGH) {
 		//Power button pressed
@@ -279,7 +282,7 @@ void setup() {
 			programNo = 4; //HRM calibration
 			btOn=false;
 #ifdef FREEPEMF_DUO
-			message ("HRM calibration", 0);
+			message ("HRM calibration", LCD_PBAR_LINE);
 #endif
 			beep(200);
 			while(digitalRead(btnPin));
@@ -295,7 +298,7 @@ void setup() {
 			programNo = 0; //PC mode via BT
 			btOn=true;
 #ifdef FREEPEMF_DUO
-			message ("freePEMF duo", 0);
+			message ("freePEMF duo", LCD_PBAR_LINE); //Add BT mark
 #endif
 			beep(200);
 		}
@@ -571,6 +574,11 @@ int executeCmd(String cmdLine, boolean directMode){
       
       if (cmdLine.length()>6) {
         Serial.println(cmdLine.substring(6,cmdLine.length()-1));
+
+#ifdef FREEPEMF_DUO
+        message(cmdLine.substring(6,cmdLine.length()-1));
+#endif
+
       } else {
         Serial.println();
       }
@@ -593,6 +601,22 @@ int executeCmd(String cmdLine, boolean directMode){
 // Print heart rate
       
         Serial.println(hr);
+
+    } else if (param[0]=="pbar"){
+// Set progress bar indicator
+
+    	if (param[1].toInt()>0) {
+    		pbarTotalTimeSec=param[1].toInt();
+
+    		if (param[2].toInt()>0) {
+    			pbarLeftTimeSec = param[2].toInt() * pbarTotalTimeSec/100;
+    		} else {
+    			pbarLeftTimeSec = pbarTotalTimeSec; //100%
+    		}
+    		Serial.println("OK");
+    	} else {
+    		Serial.println("Error: wrong parameter.");
+    	}
 
 
     } else if (param[0]=="beep"){
@@ -855,6 +879,7 @@ int readLabelPointers(int prog){
 
 	do {
 		if (prog>0) {
+
 			//Internal program addresses
 			adr = readFlashLine(i,line);
 			getParams(line);
@@ -909,6 +934,8 @@ void exe(int &adr, int prog){
 
 	String line;
 	int endLine;
+	pbarTotalTimeSec = 0; //reset progress bar counter
+	pbarLeftTimeSec = 0; //reset progress bar counter
 
 
 	//First time of internal and user program init.
@@ -1170,7 +1197,11 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				if (l % 10 == 0) {
 					Serial.print('.');
 #ifdef FREEPEMF_DUO
-				progressBar (period,period-(l)/10-1);
+				if (pbarTotalTimeSec) {
+					progressBar( pbarTotalTimeSec, pbarLeftTimeSec--);
+				} else {
+					progressBar (period,period-(l)/10-1);
+				}
 #endif
 				}
 
@@ -1277,7 +1308,11 @@ void freq(unsigned long _freq, long period, byte pwm) {
 				serialStartMillis = millis();
 
 #ifdef FREEPEMF_DUO
-				progressBar (period, (uptime-millis())/1000);
+				if (pbarTotalTimeSec) {
+					progressBar( pbarTotalTimeSec, pbarLeftTimeSec--);
+				} else {
+					progressBar (period, (uptime-millis())/1000);
+				}
 #endif
 			}
 
@@ -1710,6 +1745,7 @@ const char internalProgram[] PROGMEM   = {
 		":1\n"
 		"#Standard program 13 m\n"
 		"wait 2000\n"
+		"pbar 780\n"
 		"freq 1179 120\n"
 		"chp 11\n"
 		"freq 783 120\n"
@@ -1729,6 +1765,7 @@ const char internalProgram[] PROGMEM   = {
 		":2\n"
 		"#Earth regeneration - 8 m\n"
 		"wait 2000\n"
+		"pbar 480\n"
 		"freq 1179 120\n"
 		"chp 11\n"
 		"freq 1179 120\n"
@@ -1742,6 +1779,7 @@ const char internalProgram[] PROGMEM   = {
 		":3\n"
 		"#Antisterss & meditation 16 m\n"
 		"wait 2000\n"
+		"pbar 960\n"
 		"freq 1200 20\n"
 		"freq 1179 150\n"
 		"chp 11\n"
@@ -1911,15 +1949,23 @@ void progressBar (long totalTimeSec, long leftTimeSec) {
 			//Serial.print("progressBar2 percent: ");
 			//Serial.println(percent);
 #endif
-			lcd.setCursor(5,LCD_PBAR_LINE);
-			for (int i=0; i<(percent/13);i++) lcd.write(255); //lcd.write('#');
-
-			lcd.print("        ");
-
 			lcd.setCursor(4,LCD_PBAR_LINE);
 			lcd.write('[');
+			//lcd.setCursor(5,LCD_PBAR_LINE);
+			//for (int i=0; i<(percent/13);i++) lcd.write(255); //lcd.write('#');
+			for (int i=0; i<8;i++) {
+				if (i<(percent/13)) {
+					lcd.write(255); //lcd.write('#');}
+				} else {
+					lcd.print(" ");
+				}
+			}
 
-			lcd.setCursor(13,LCD_PBAR_LINE);
+			//lcd.print("        ");
+
+
+
+			//lcd.setCursor(13,LCD_PBAR_LINE);
 			lcd.write(']');
 		}
 
