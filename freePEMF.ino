@@ -19,7 +19,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2018-12-26"
+#define SOFT_VER "2018-12-30"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -121,13 +121,13 @@ boolean Xoff = false;
 boolean btOn = false;
 byte display = 1;
 OutMode outMode;
-long pbarTotalTimeSec, pbarLeftTimeSec;  //For total progress bar calculation
+long pbarTotalTimeSec=0, pbarLeftTimeSec=0;  //For total progress bar calculation
 
 //use global variables locally, for saving RAM memory
 byte b;
 int i;
 long l;
-unsigned long ul;
+unsigned long ul, timeMark=0;
 char c;
 
 
@@ -177,6 +177,7 @@ int readFlashLine(int fromAddress, String &lineString);
 #ifdef FREEPEMF_DUO
 void progressBar (long totalTimeSec, long leftTimeSec);
 void message (String messageText, byte row = LCD_MESSAGE_LINE);
+void printMode();
 #endif
 
 //bioZAP functions
@@ -576,7 +577,10 @@ int executeCmd(String cmdLine, boolean directMode){
         Serial.println(cmdLine.substring(6,cmdLine.length()-1));
 
 #ifdef FREEPEMF_DUO
-        message(cmdLine.substring(6,cmdLine.length()-1));
+		i = display; // Remember display status
+		if (!i) display = 1;
+		message(cmdLine.substring(6,cmdLine.length()-1), LCD_MESSAGE_LINE);
+		display=i;
 #endif
 
       } else {
@@ -607,6 +611,7 @@ int executeCmd(String cmdLine, boolean directMode){
 
     	if (param[1].toInt()>0) {
     		pbarTotalTimeSec=param[1].toInt();
+    		timeMark = millis();
 
     		if (param[2].toInt()>0) {
     			pbarLeftTimeSec = param[2].toInt() * pbarTotalTimeSec/100;
@@ -614,9 +619,22 @@ int executeCmd(String cmdLine, boolean directMode){
     			pbarLeftTimeSec = pbarTotalTimeSec; //100%
     		}
     		Serial.println("OK");
-    	} else {
-    		Serial.println("Error: wrong parameter.");
-    	}
+    	} else 	if (pbarTotalTimeSec) {
+
+			i = display; // Remember display status
+			display = 1;
+			pbarLeftTimeSec= pbarTotalTimeSec- (millis()- timeMark)/1000;
+#ifdef FREEPEMF_DUO
+			progressBar(pbarTotalTimeSec, pbarLeftTimeSec);
+#endif
+			display=i;
+			Serial.println("OK");
+
+    		} else {
+    			Serial.println("Error: initialization pbar");
+    		}
+
+
 
 
     } else if (param[0]=="beep"){
@@ -684,7 +702,7 @@ int executeCmd(String cmdLine, boolean directMode){
     	case '0':
 
     		message("Display is off",LCD_PBAR_LINE);
-    		message("");
+    		//message("");
     		display=0;
     		Serial.println("OK");
 
@@ -692,8 +710,9 @@ int executeCmd(String cmdLine, boolean directMode){
     	case '1':
     		display=1;
     		message("Display is on",LCD_PBAR_LINE);
-    		Serial.println("OK"); break;
+    		Serial.println("OK");
 
+    	break;
     	default:
     		Serial.println("Error: wrong parameter.");
     	}
@@ -1184,6 +1203,9 @@ void freq(unsigned long _freq, long period, byte pwm) {
 
 		//Use experimental time-counter generator
 		out('M');
+#ifdef FREEPEMF_DUO
+		printMode();
+#endif
 
 		xfreq(lastFreq, /*period,*/ pwm);
 
@@ -1869,6 +1891,12 @@ int readFlashLine(int fromAddress, String &lineString){
 
 #ifdef FREEPEMF_DUO
 
+void printMode(){
+	lcd.setCursor(15, LCD_MESSAGE_LINE);
+	lcd.print( outMode.mode );
+}
+
+
 void message (String messageText, byte row ) {
 // Show message in row line
 	if (display) {
@@ -1889,16 +1917,12 @@ void message (String messageText, byte row ) {
 		}
 
 		if (row==LCD_MESSAGE_LINE){
-
-			lcd.setCursor(15, row);
-			lcd.print( outMode.mode );
+			printMode();
 		}
+
 	}
-
-
-
-
 }
+
 
 void progressBar (long totalTimeSec, long leftTimeSec) {
 //Showing progress with left time in formats: 999m (greater then 10min), 120s (less then 10min)

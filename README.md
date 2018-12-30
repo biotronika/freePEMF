@@ -40,3 +40,5 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 * automatic change out to M mode above 61Hz
 * disp 0 1 - use or do not use display (freePEMF duo only) 1=use 0=don't use
 * pbar <left_time_sec> < |percent> Setup program progress bar on LCD screen. Percent is optional. No percent means 100%
+* pbar - manual refresh LCD if display is off
+* print
