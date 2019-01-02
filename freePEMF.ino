@@ -13,13 +13,13 @@
 
 #include <Arduino.h>  		// For eclipse IDE only
 
-//#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or comment that line for standard freePEMF device
+#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or comment that line for standard freePEMF device
 //#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2018-12-30"
+#define SOFT_VER "2019-01-01"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -75,7 +75,7 @@
 #define USB_POWER_SUPPLY_LEVEL 65     // Maximum USB voltage level means 6.5V
 
 
-//bioZAP
+//bioZAP_def.h/////////////////////////////////////////////////////
 #define WELCOME_SCR "bioZAP interpreter welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 64  // SRAM buffer size, used for script loading
@@ -96,6 +96,52 @@
 #define SCAN_STEPS 20       // For scan function purpose - default steps
 #define MAX_LABELS 9        // Number of jump labels
 
+//constant string definitions
+#define  COMMAND_STOP  "stop"		//new - while working
+#define  COMMAND_START  "start"		// exe, exe 1, exe 2, ....
+#define  COMMAND_PAUSE  "pause"		//new - while working
+#define  COMMAND_STATUS  "status"  	//new
+#define  COMMAND_OFF  "off"
+#define  COMMAND_ON  "on"			//not supported
+#define  COMMAND_DEVICE  "device"  	//new
+
+#define COMMAND_RESTART "restart"
+#define COMMAND_PWM "pwm"
+#define COMMAND_OUT "out"
+#define COMMAND_FREQ "freq"
+#define COMMAND_SIN "sin"
+#define COMMAND_JUMP "jump"
+#define COMMAND_REC "rec"
+#define COMMAND_SCAN "scan"
+#define COMMAND_CHP "chp"
+#define COMMAND_EXE "exe"
+#define COMMAND_PROG "prog"
+#define COMMAND_WAIT "wait"
+#define COMMAND_PIN3  "pin3"
+#define COMMAND_BAT "bat"
+#define COMMAND_BEEP "beep"
+#define COMMAND_RM "rm"
+#define COMMAND_PRINT "print"
+#define COMMAND_MEM "mem"
+#define COMMAND_LS "ls"
+//TODO: add left functions
+
+//TODO:???
+#define RESPONSE_PREFIX "R:"
+#define RESPONSE_STATUS_READY "STATUS:READY"
+#define RESPONSE_STATUS_OFF "STATUS:OFF"
+#define RESPONSE_STATUS_WORKING "STATUS:WORKING"
+#define RESPONSE_STATUS_PAUSED "STATUS:PAUSED"
+#define RESPONSE_DEVICE "DEVICE:free-PEMF"
+#define RESPONSE_LS_BEGIN "LS:BEGIN"
+#define RESPONSE_LS_END "LS:END"
+#define PROGRAM_RUN "P:RUN:"
+#define PROGRAM_LEN "P:LEN:"
+#define LOG_SEPARATOR ':'
+#define LINE_SEPARATOR '\n'
+#define EMPTY_STRING ""
+#define PROGRAM_END '@'
+//END bioZAP_def.h/////////////////////////////////////////////////////////
 
 #ifdef FREEPEMF_DUO
 LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
@@ -108,7 +154,7 @@ struct OutMode {
 	byte mask = B11;  //B11,    B01,    B10
 };
 
-//bioZAP
+//bioZAP.h/////////////////////////////////////////////////////////////
 String inputString = "";                // A string to hold incoming serial data
 String line;
 String param[MAX_CMD_PARAMS];           // param[0] = cmd name
@@ -129,6 +175,7 @@ int i;
 long l;
 unsigned long ul, timeMark=0;
 char c;
+//END bioZAP.h/////////////////////////////////////////////////////////////
 
 
 //bioZAP jump & labels
@@ -180,7 +227,8 @@ void message (String messageText, byte row = LCD_MESSAGE_LINE);
 void printMode();
 #endif
 
-//bioZAP functions
+//bioZAP.h///////////////////////////////////////////////////////////////
+//functions
 void scan(unsigned long freq, unsigned long period, int steps=SCAN_STEPS);
  int jump(int labelNumber, int &adr);
 void off();
@@ -194,6 +242,7 @@ void ls();
 void rm();
 void chp(byte relayState);
 void out(byte coilsState);
+//END bioZAP.h/////////////////////////////////////////////////////////////
 
  
 void setup() {  
@@ -470,7 +519,7 @@ void loop() {
 } 
 
 
-///////////////  BIOzap BEGINING  ///////////////////
+//bioZAP_cmd.h///////////////////////////////////////
 
 String formatLine(int adr, String line){
   String printLine;
@@ -836,7 +885,7 @@ return 0;
 
 
 
-///////////////////////// bioZAP ////////////////////////////////////////
+//bioZAP.h////////////////////////////////////////
 
 void rm(){
 // Remove, clear script therapy from memory
@@ -1086,6 +1135,7 @@ void scan(unsigned long _freq, unsigned long period, int steps){
 	}
 }
 
+
 void ls(){
 //List script therapy
 	int adr=0;
@@ -1119,8 +1169,6 @@ void ls(){
 	}
 
 }
-
-
 
 
 void xfreq(unsigned long _freq, /*long period,*/ byte pwm){
@@ -1382,6 +1430,7 @@ unsigned long inline checkPause(){
 	} else	return 0;
 }
 
+
 void off() {
   // Power off function
   
@@ -1397,6 +1446,7 @@ void off() {
 	while(1); //forever loop
   
 }
+
 
 void chp(byte relayState){
 	//Change output polarity
@@ -1430,7 +1480,6 @@ void chp(byte relayState){
 	digitalWrite(int4Pin, (relayState ^ B10) >> 1 );
 
 }
-
 
 
 void out(byte coilsState){
@@ -1516,7 +1565,52 @@ void beep( unsigned int period) {
 }
 
 
-///////////////  BIOzap END  ///////////////////
+//END bioZAP.h///////////////////////////////////////////////////
+
+void btnEvent() {
+   //Change button state interruption
+   //unsigned long pressTime =0;
+
+  if (digitalRead(btnPin)==HIGH){
+    pressTime = millis(); //Specific use of millis(). No incrementing in interruption function.
+  } else {
+    if (pressTime && (millis() - pressTime > 50)) pause=!pause;
+    if (pressTime && (millis() - pressTime > 1000)) {
+      for(unsigned int i=0; i<50000; i++) digitalWrite(buzzPin, HIGH); //Cannot use delay() therefore beep() function in interruption
+      digitalWrite(buzzPin, LOW);
+      off();
+    }
+    pressTime = 0;
+  }
+}
+
+
+
+
+void getParams(String &inputString){
+  for (int i=0; i<MAX_CMD_PARAMS; i++) param[i]="";
+
+  int from =0;
+  int to =0;
+  for (int i=0; i<MAX_CMD_PARAMS; i++){
+    to = inputString.indexOf(' ',from); //Find SPACE
+
+    if (to==-1) {
+      to = inputString.indexOf('\n',from); //Find NL #10
+      if (to>0) param[i] = inputString.substring(from,to);
+      param[i].trim();
+      break;
+    }
+
+    if (to>0) param[i] = inputString.substring(from,to);
+    param[i].trim();
+    from = to+1;
+  }
+}
+
+
+
+//freePEMF_battery.h///////////////////////////////////////////////////////////
 
 void checkBattLevel() {
   //Check battery level
@@ -1605,71 +1699,10 @@ void rechargeBattery() {
   }  while (1); //forever loop
 }
 
-void btnEvent() {
-   //Change button state interruption 
-   //unsigned long pressTime =0;
-   
-  if (digitalRead(btnPin)==HIGH){ 
-    pressTime = millis(); //Specific use of millis(). No incrementing in interruption function.
-  } else { 
-    if (pressTime && (millis() - pressTime > 50)) pause=!pause;
-    if (pressTime && (millis() - pressTime > 1000)) { 
-      for(unsigned int i=0; i<50000; i++) digitalWrite(buzzPin, HIGH); //Cannot use delay() therefore beep() function in interruption
-      digitalWrite(buzzPin, LOW);
-      off(); 
-    } 
-    pressTime = 0;
-  }
-}
-
-
-int readEepromLine(int fromAddress, String &lineString){
-  //Read one line from EEPROM memory
-  int i = 0;
-  lineString="";
-  do {
-    char eeChar=(char)EEPROM.read(fromAddress+i);
-    if ((eeChar==char(255)) ||(eeChar==char('@'))) {
-      if (i>0) {
-        eeChar='\n';
-      } else {
-        i=0;
-        break;
-      }
-    }
-    lineString+=eeChar; 
-    i++;
-    if (eeChar=='\n') break;
-  } while (1);
-  
-  return i;
-}
-
-void getParams(String &inputString){
-  for (int i=0; i<MAX_CMD_PARAMS; i++) param[i]="";
-  
-  int from =0;
-  int to =0;
-  for (int i=0; i<MAX_CMD_PARAMS; i++){
-    to = inputString.indexOf(' ',from); //Find SPACE
-   
-    if (to==-1) {
-      to = inputString.indexOf('\n',from); //Find NL #10
-      if (to>0) param[i] = inputString.substring(from,to);
-      param[i].trim();
-      break;
-    }
-
-    if (to>0) param[i] = inputString.substring(from,to);
-    param[i].trim();
-    from = to+1;
-  }
-}
 
 
 
-
-/////////////////////////////////////////////////////////////////////////////
+//freePEMF_serial///////////////////////////////////////////////////////////////////////////
 void serialEvent() {
 
   while (Serial.available()) {
@@ -1729,6 +1762,30 @@ boolean readSerial2Buffer(int &endBuffer) {
     return true;
 }
 
+//freePEMF_eeprom.h//////////////////////////////////////////////////////////////////////////
+
+int readEepromLine(int fromAddress, String &lineString){
+  //Read one line from EEPROM memory
+  int i = 0;
+  lineString="";
+  do {
+    char eeChar=(char)EEPROM.read(fromAddress+i);
+    if ((eeChar==char(255)) ||(eeChar==char('@'))) {
+      if (i>0) {
+        eeChar='\n';
+      } else {
+        i=0;
+        break;
+      }
+    }
+    lineString+=eeChar;
+    i++;
+    if (eeChar=='\n') break;
+  } while (1);
+
+  return i;
+}
+
 void eepromUpload(int adr) {
   unsigned int i = 0;
   boolean flagCompleted;
@@ -1759,7 +1816,7 @@ void eepromUpload(int adr) {
 
 
 
-
+//freePEMF_prog.h////////////////////////////////////////////////////////////////////////
 
 #include <avr/pgmspace.h>
 const char internalProgram[] PROGMEM   = {
@@ -1849,6 +1906,7 @@ const char internalProgram[] PROGMEM   = {
 
 };
 
+
 int readFlashLine(int fromAddress, String &lineString){
 	  //Read one line from EEPROM memory
 	  int i = 0;
@@ -1887,7 +1945,7 @@ int readFlashLine(int fromAddress, String &lineString){
 }
 
 
-/////////////////////////////// LCD SUPPORT ////////////////////////////////////
+//freePEMF_lcd.h///////////////////////////////////////////////////////////////////
 
 #ifdef FREEPEMF_DUO
 
