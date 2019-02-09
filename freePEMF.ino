@@ -13,13 +13,13 @@
 
 #include <Arduino.h>  		// For eclipse IDE only
 
-#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or comment that line for standard freePEMF device
+//#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or comment that line for standard freePEMF device
 //#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-01-01"
+#define SOFT_VER "2019-02-09"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -38,7 +38,7 @@
 #define btnPin 3	// Power On-Off / Pause / Change program button
 #define hrmPin 2	// Biofeedback HR meter on 3th plug pin.
 
-#define coilPin 5	// Coil driver IRF540 (NANO 4.2) or ENA driver pin for NANO 4.3
+#define coilPin 5	// Coil driver IRF540 (NANO 4.2) or ENB ch2 driver pin for NANO 4.3
 #define relayPin 9	// Direction relay - NANO 4.2 only (4.3 does not have direction relay)
 
 #define int1Pin A0	// NANO 4.3 and 5.0 supports L298N driver INT1 (ch 1) driver pin
@@ -49,7 +49,7 @@
 #ifdef FREEPEMF_DUO
  #define redPin   LED_BUILTIN  	// Not used,
  #define greenPin LED_BUILTIN	// on board led
- #define coilAuxPin 12	// ENB driver pin for NANO 5.0
+ #define coilAuxPin 12	// ENA ch1 driver pin for NANO 5.0
 
  #define SCL A5  		// I2C LCD interface
  #define SDA A4
@@ -262,13 +262,13 @@ void setup() {
 	digitalWrite(btPowerPin, HIGH); //HIGH = off
 #endif
 
-	pinMode(int1Pin,  OUTPUT);   // Direction L298N (ch1)
-	pinMode(int2Pin,  OUTPUT);   // Direction L298N (ch1)
-
-#ifdef FREEPEMF_DUO
 	pinMode(int3Pin,  OUTPUT);   // Direction L298N (ch2)
 	pinMode(int4Pin,  OUTPUT);   // Direction L298N (ch2)
-	pinMode(coilAuxPin,  OUTPUT);   // Auxiliary coil ch2
+
+#ifdef FREEPEMF_DUO
+	pinMode(int1Pin,  OUTPUT);   // Direction L298N (ch1)
+	pinMode(int2Pin,  OUTPUT);   // Direction L298N (ch1)
+	pinMode(coilAuxPin,  OUTPUT);   // Auxiliary coil ch1
 
 #endif
 
@@ -1459,8 +1459,8 @@ void chp(byte relayState){
 	digitalWrite(relayPin, relayState & B01);
 
 	//NANO 4.3 L298N driver
-	digitalWrite(int1Pin,  relayState & B01  );
-	digitalWrite(int2Pin, (relayState ^ B01) & B01 );
+	digitalWrite(int3Pin,  relayState & B01  );
+	digitalWrite(int4Pin, (relayState ^ B01) & B01 );
 
 #ifdef SERIAL_DEBUG
 	Serial.print("relayState ");
@@ -1476,8 +1476,8 @@ void chp(byte relayState){
 #endif
 
 	//NANO 5.0 L298 driver - Auxiliary channel
-	digitalWrite(int3Pin, (relayState & B10) >> 1 );
-	digitalWrite(int4Pin, (relayState ^ B10) >> 1 );
+	digitalWrite(int1Pin, (relayState & B10) >> 1 );
+	digitalWrite(int2Pin, (relayState ^ B10) >> 1 );
 
 }
 
