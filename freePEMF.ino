@@ -13,13 +13,14 @@
 
 #include <Arduino.h>  		// For eclipse IDE only
 
-//#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or comment that line for standard freePEMF device
-//#define BT_HC05 			// Uncomment if used HC-05 bt module. It has power invert transistor on D6 pin
+//#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or
+							// comment that line for standard freePEMF device
+
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-02-09"
+#define SOFT_VER "2019-03-14"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -1460,7 +1461,8 @@ void chp(byte relayState){
 
 	//NANO 4.3 L298N driver
 	digitalWrite(int3Pin,  relayState & B01  );
-	digitalWrite(int4Pin, (relayState ^ B01) & B01 );
+	digitalWrite(int4Pin,  !(relayState & B01)  );
+	//digitalWrite(int4Pin, (relayState ^ B01) & B01 );
 
 #ifdef SERIAL_DEBUG
 	Serial.print("relayState ");
@@ -1477,7 +1479,8 @@ void chp(byte relayState){
 
 	//NANO 5.0 L298 driver - Auxiliary channel
 	digitalWrite(int1Pin, (relayState & B10) >> 1 );
-	digitalWrite(int2Pin, (relayState ^ B10) >> 1 );
+	digitalWrite(int2Pin, !((relayState & B10) >> 1) );
+	//digitalWrite(int2Pin, (relayState ^ B10) >> 1 );
 
 }
 
