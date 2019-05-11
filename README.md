@@ -32,6 +32,7 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 * njump ... min max
 * jump3
 * auto-calculation of pbar
+* pause working in xfreq mode (above 61Hz)
 
 #### DONE
 * during loading a therapy add voice signal after committing each part of script
