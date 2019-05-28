@@ -14,9 +14,8 @@
 
 #include <Arduino.h>  		// For eclipse IDE only
 
-//#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or
-							// comment that line for standard freePEMF device
-//#define RTC				// Uncomment if you have DS3231 installed in freePEMF DUO
+#define FREEPEMF_DUO  	// Comment that line for standard (not duo) freePEMF device
+#define RTC				// Uncomment if you have DS3231 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
@@ -596,15 +595,40 @@ int executeCmd(String cmdLine, boolean directMode){
     	}
 
 
-     } else if (param[0]==""){
-// rtc2
+     } else if (param[0]=="gettime"){
+// Write current time
+#ifdef RTC
+    		rtcGetTime(hh, mm, ss);
+    		Serial.print(hh);
+    		Serial.print(" ");
+    		Serial.print(mm);
+    		Serial.print(" ");
+    		Serial.println(ss);
+#else
+    		Serial.println("Error: No RTC support!");
+#endif
 
-       ;
+     } else if (param[0]=="waitfor"){
+//Wait for a specific time hh mm ss
+     	if ( param[1]!="" && param[2]!="" ){
 
-     } else if (param[0]==""){
-// rtc3
+ #ifdef RTC
 
-       ;
+     		Serial.println("waiting...");
+     		do  {
+     			rtcGetTime(hh, mm, ss);
+     			delay(300);
+     		} while (param[1].toInt()!=hh || param[2].toInt()!=mm || param[3].toInt()!=ss);
+
+     		Serial.println("OK");
+ #else
+     		Serial.println("Error: No RTC support!");
+ #endif
+
+      	} else {
+     		Serial.println("Error: Syntax settime [hh] [mm] [ss]");
+     	}
+
 
 
     } else if (param[0].charAt(0)==':') {
