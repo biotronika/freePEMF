@@ -39,7 +39,8 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 * settime [hh] [mm] [ |ss] - set specific time
 * waitfor [hh] [mm] [ |ss] - wait for specific time
 * gettime - returns hh mm ss
-OLD
+
+2019-03 freePEMF duo support
 * during loading a therapy add voice signal after committing each part of script
 * support for bluetooth interface
 * out mode: B M A - means: Both, Main or Auxiliary coil
