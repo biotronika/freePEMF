@@ -35,6 +35,11 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 * pause working in xfreq mode (above 61Hz)
 
 #### DONE
+* 2019-05-28 added RTC (DS3231) support. New, time control commands:
+* settime [hh] [mm] [ |ss] - set specific time
+* waitfor [hh] [mm] [ |ss] - wait for specific time
+* gettime - returns hh mm ss
+
 * during loading a therapy add voice signal after committing each part of script
 * support for bluetooth interface
 * out mode: B M A - means: Both, Main or Auxiliary coil
