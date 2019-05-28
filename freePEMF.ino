@@ -1,11 +1,12 @@
 /*
  * One Arduino firmware file for freePEMF and freePEMF duo
  * Supports: NANO 4.2  4.3  5.0 hardware & XM-15B bluetooth serial ext.
+ * 2019-05-28 added Real Time Clock (DS3231) support.
  *
  * Chris Czoba (copyleft) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl
  *
- * License: https://github.com/biotronika/mini-freePEMF
+ * License: https://github.com/biotronika/freePEMF
  *
  * New software version running bioZAP 2018-10-21
  * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
@@ -15,12 +16,13 @@
 
 //#define FREEPEMF_DUO  	// Uncomment for freePEMF duo or
 							// comment that line for standard freePEMF device
+//#define RTC				// Uncomment if you have DS3231 installed in freePEMF DUO
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-03-14"
+#define SOFT_VER "2019-05-28"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -226,6 +228,15 @@ int readFlashLine(int fromAddress, String &lineString);
 void progressBar (long totalTimeSec, long leftTimeSec);
 void message (String messageText, byte row = LCD_MESSAGE_LINE);
 void printMode();
+
+#ifdef RTC //RTC support
+static uint8_t bcd2bin (uint8_t val) { return val - 6 * (val >> 4); }
+static uint8_t bin2bcd (uint8_t val) { return val + 6 * (val / 10); }
+void rtcSetTime(uint8_t hh, uint8_t mm, uint8_t ss);
+void rtcGetTime(uint8_t &hh, uint8_t &mm, uint8_t &ss);
+uint8_t hh,mm,ss;
+#endif
+
 #endif
 
 //bioZAP.h///////////////////////////////////////////////////////////////
@@ -566,6 +577,35 @@ int executeCmd(String cmdLine, boolean directMode){
       
       ;
 
+    } else if (param[0]=="settime"){
+// Set time
+    	if ( param[1]!="" && param[2]!="" ){
+
+#ifdef RTC
+    		hh = param[1].toInt();
+    		mm = param[2].toInt();
+    		ss = param[3].toInt();
+    		rtcSetTime(hh, mm, ss);
+    		Serial.println("OK");
+#else
+    		Serial.println("Error: No RTC support!");
+#endif
+
+     	} else {
+    		Serial.println("Error: Syntax: settime [hh] [mm] [ss]");
+    	}
+
+
+     } else if (param[0]==""){
+// rtc2
+
+       ;
+
+     } else if (param[0]==""){
+// rtc3
+
+       ;
+
 
     } else if (param[0].charAt(0)==':') {
 // Label - setup for new label jump counter
@@ -608,16 +648,7 @@ int executeCmd(String cmdLine, boolean directMode){
       // Remove, clear therapy - high speed
 
     	EEPROM.put(0, '@');
-
-//TODO permanent clear memory
-/*
-        for(int i=0; i<PROGRAM_SIZE; i++){
-        	EEPROM.put(i, 255);
-        	if (!(i % 128)) Serial.print(".");
-      	}
-
-*/
-      Serial.println("OK");
+    	Serial.println("OK");
 
 
     } else if (param[0]=="print"){
@@ -2058,5 +2089,38 @@ void progressBar (long totalTimeSec, long leftTimeSec) {
 
 }
 
+#ifdef RTC //////////////////////////////////////////////////////////////
+		   // Real Time Clock support and settime, waitfor, gettime commands
+
+ void rtcSetTime(uint8_t hh, uint8_t mm, uint8_t ss) {
+	//Set time in DS 3231
+  Wire.beginTransmission(0x68);
+  Wire.write((byte)0); // start at location 0
+  Wire.write(bin2bcd(ss));
+  Wire.write(bin2bcd(mm));
+  Wire.write(bin2bcd(hh));
+  Wire.endTransmission();
+}
+
+ void rtcGetTime(uint8_t &hh, uint8_t &mm, uint8_t &ss){
+	//Get time from DS3231
+	ss = 255;
+	mm = 255;
+	hh = 255;
+
+ 	Wire.beginTransmission(0x68); // 0x68 is DS3231 device address
+	Wire.write((byte)0); // start at register 0
+	Wire.endTransmission();
+	Wire.requestFrom(0x68, 3); // request three bytes (seconds, minutes, hours)
+
+ 	while( Wire.available() )  {
+
+ 		ss = bcd2bin(Wire.read() & 0x7F);
+		mm = bcd2bin(Wire.read());
+		hh = bcd2bin(Wire.read());
+	}
+}
+
+ #endif
 
 #endif
