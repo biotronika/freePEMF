@@ -14,8 +14,8 @@
 
 #include <Arduino.h>  		// For eclipse IDE only
 
-#define FREEPEMF_DUO  	// Comment that line for standard (not duo) freePEMF device
-#define RTC				// Uncomment if you have DS3231 installed in freePEMF duo
+#define FREEPEMF_DUO  		// Comment that line for standard (not duo) freePEMF device
+//#define RTC				// Uncomment if you have DS3231 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
