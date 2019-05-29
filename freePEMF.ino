@@ -1,7 +1,7 @@
 /*
  * One Arduino firmware file for freePEMF and freePEMF duo
  * Supports: NANO 4.2  4.3  5.0 hardware & XM-15B bluetooth serial ext.
- * 2019-05-28 added Real Time Clock (DS3231) support.
+ * 2019-05-28 added Real Time Clock (DS1307) support.
  *
  * Chris Czoba (copyleft) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl
