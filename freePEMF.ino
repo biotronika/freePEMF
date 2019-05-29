@@ -21,7 +21,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-05-28"
+#define SOFT_VER "2019-05-29"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" // freePEMF duo
@@ -64,10 +64,7 @@
 
 
 //Bluetooth
-//#define btStatePin 7	//OUT Change to AT mode if is high during power is on.
-//#define btEnPin	8	//IN
 #define btPowerPin	6	//OUT
-
 
 
 //Battery staff
@@ -99,33 +96,33 @@
 #define MAX_LABELS 9        // Number of jump labels
 
 //constant string definitions
-#define  COMMAND_STOP  "stop"		//new - while working
+#define  COMMAND_STOP  	"stop"		//new - while working
 #define  COMMAND_START  "start"		// exe, exe 1, exe 2, ....
 #define  COMMAND_PAUSE  "pause"		//new - while working
-#define  COMMAND_STATUS  "status"  	//new
-#define  COMMAND_OFF  "off"
-#define  COMMAND_ON  "on"			//not supported
-#define  COMMAND_DEVICE  "device"  	//new
+#define  COMMAND_STATUS "status"  	//new
+#define  COMMAND_OFF  	"off"
+#define  COMMAND_ON  	"on"		//not supported
+#define  COMMAND_DEVICE "device"  	//new
 
 #define COMMAND_RESTART "restart"
-#define COMMAND_PWM "pwm"
-#define COMMAND_OUT "out"
-#define COMMAND_FREQ "freq"
-#define COMMAND_SIN "sin"
-#define COMMAND_JUMP "jump"
-#define COMMAND_REC "rec"
-#define COMMAND_SCAN "scan"
-#define COMMAND_CHP "chp"
-#define COMMAND_EXE "exe"
-#define COMMAND_PROG "prog"
-#define COMMAND_WAIT "wait"
-#define COMMAND_PIN3  "pin3"
-#define COMMAND_BAT "bat"
-#define COMMAND_BEEP "beep"
-#define COMMAND_RM "rm"
-#define COMMAND_PRINT "print"
-#define COMMAND_MEM "mem"
-#define COMMAND_LS "ls"
+#define COMMAND_PWM 	"pwm"
+#define COMMAND_OUT 	"out"
+#define COMMAND_FREQ 	"freq"
+#define COMMAND_SIN 	"sin"
+#define COMMAND_JUMP 	"jump"
+#define COMMAND_REC 	"rec"
+#define COMMAND_SCAN 	"scan"
+#define COMMAND_CHP 	"chp"
+#define COMMAND_EXE 	"exe"
+#define COMMAND_PROG 	"prog"
+#define COMMAND_WAIT 	"wait"
+#define COMMAND_PIN3  	"pin3"
+#define COMMAND_BAT 	"bat"
+#define COMMAND_BEEP 	"beep"
+#define COMMAND_RM 		"rm"
+#define COMMAND_PRINT 	"print"
+#define COMMAND_MEM 	"mem"
+#define COMMAND_LS 		"ls"
 //TODO: add left functions
 
 //TODO:???
@@ -146,9 +143,10 @@
 //END bioZAP_def.h/////////////////////////////////////////////////////////
 
 #ifdef FREEPEMF_DUO
+
 LiquidCrystal_I2C lcd(0x3F,16,2);  // set the LCD address to 0x3F for a 16 chars and 2 line display
 //LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
-//unsigned long _lastProgressBarShowed = millis();
+
 #endif
 
 struct OutMode {
@@ -269,9 +267,7 @@ void setup() {
 	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
 
 	pinMode(btPowerPin, OUTPUT);
-#ifdef BT_HC05
-	digitalWrite(btPowerPin, HIGH); //HIGH = off
-#endif
+
 
 	pinMode(int3Pin,  OUTPUT);   // Direction L298N (ch2)
 	pinMode(int4Pin,  OUTPUT);   // Direction L298N (ch2)
