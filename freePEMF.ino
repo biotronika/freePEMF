@@ -264,7 +264,7 @@ void setup() {
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
-	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
+	pinMode(hrmPin,    INPUT); //Devices connection _PULLUP
 
 	pinMode(btPowerPin, OUTPUT);
 
