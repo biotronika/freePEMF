@@ -1,34 +1,38 @@
 /*
  * One Arduino firmware file for freePEMF and freePEMF duo
  * Supports: NANO 4.2  4.3  5.0 hardware & XM-15B bluetooth serial ext.
- * 2019-05-28 added Real Time Clock (DS1307) support.
+ *
+ * 2019-05-28 added Real Time Clock (DS1307) support. RTC works with freePEMF & freePEMF duo
  *
  * Chris Czoba (copyleft) krzysiek@biotronika.pl
  * See: biotronics.eu or biotronika.pl
  *
  * License: https://github.com/biotronika/freePEMF
  *
- * New software version running bioZAP 2018-10-21
- * See: https://biotronika.pl/sites/default/files/2018-10/bioZAP%202018-10-21%20EN.pdf
+ * New software version running bioZAP 2018-10-21 and more
  */
 
 #include <Arduino.h>  		// For eclipse IDE only
 
 #define FREEPEMF_DUO  		// Comment that line for standard (not duo) freePEMF device
-//#define RTC				// Uncomment if you have DS3231 installed in freePEMF duo
+//#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-05-29"
+#define SOFT_VER "2019-05-31"
 
 #ifdef FREEPEMF_DUO
- #define HRDW_VER "NANO 5.0" // freePEMF duo
+ #define HRDW_VER "NANO 5.0" 	// freePEMF duo
  #include <Wire.h>
  #include <LiquidCrystal_I2C.h>
 #else
- #define HRDW_VER "NANO 4.3"	// standard with IRF540  or L298N driver
+ #define HRDW_VER "NANO 4.3"	// Old device with IRF540 or L298N driver
+#endif
+
+#ifdef RTC
+ #include <Wire.h>				// For non-duo devices
 #endif
 
 
@@ -95,51 +99,6 @@
 #define SCAN_STEPS 20       // For scan function purpose - default steps
 #define MAX_LABELS 9        // Number of jump labels
 
-//constant string definitions
-#define  COMMAND_STOP  	"stop"		//new - while working
-#define  COMMAND_START  "start"		// exe, exe 1, exe 2, ....
-#define  COMMAND_PAUSE  "pause"		//new - while working
-#define  COMMAND_STATUS "status"  	//new
-#define  COMMAND_OFF  	"off"
-#define  COMMAND_ON  	"on"		//not supported
-#define  COMMAND_DEVICE "device"  	//new
-
-#define COMMAND_RESTART "restart"
-#define COMMAND_PWM 	"pwm"
-#define COMMAND_OUT 	"out"
-#define COMMAND_FREQ 	"freq"
-#define COMMAND_SIN 	"sin"
-#define COMMAND_JUMP 	"jump"
-#define COMMAND_REC 	"rec"
-#define COMMAND_SCAN 	"scan"
-#define COMMAND_CHP 	"chp"
-#define COMMAND_EXE 	"exe"
-#define COMMAND_PROG 	"prog"
-#define COMMAND_WAIT 	"wait"
-#define COMMAND_PIN3  	"pin3"
-#define COMMAND_BAT 	"bat"
-#define COMMAND_BEEP 	"beep"
-#define COMMAND_RM 		"rm"
-#define COMMAND_PRINT 	"print"
-#define COMMAND_MEM 	"mem"
-#define COMMAND_LS 		"ls"
-//TODO: add left functions
-
-//TODO:???
-#define RESPONSE_PREFIX "R:"
-#define RESPONSE_STATUS_READY "STATUS:READY"
-#define RESPONSE_STATUS_OFF "STATUS:OFF"
-#define RESPONSE_STATUS_WORKING "STATUS:WORKING"
-#define RESPONSE_STATUS_PAUSED "STATUS:PAUSED"
-#define RESPONSE_DEVICE "DEVICE:free-PEMF"
-#define RESPONSE_LS_BEGIN "LS:BEGIN"
-#define RESPONSE_LS_END "LS:END"
-#define PROGRAM_RUN "P:RUN:"
-#define PROGRAM_LEN "P:LEN:"
-#define LOG_SEPARATOR ':'
-#define LINE_SEPARATOR '\n'
-#define EMPTY_STRING ""
-#define PROGRAM_END '@'
 //END bioZAP_def.h/////////////////////////////////////////////////////////
 
 #ifdef FREEPEMF_DUO
@@ -225,6 +184,7 @@ int readFlashLine(int fromAddress, String &lineString);
 void progressBar (long totalTimeSec, long leftTimeSec);
 void message (String messageText, byte row = LCD_MESSAGE_LINE);
 void printMode();
+#endif
 
 #ifdef RTC //RTC support
 static uint8_t bcd2bin (uint8_t val) { return val - 6 * (val >> 4); }
@@ -232,8 +192,6 @@ static uint8_t bin2bcd (uint8_t val) { return val + 6 * (val / 10); }
 void rtcSetTime(uint8_t hh, uint8_t mm, uint8_t ss);
 void rtcGetTime(uint8_t &hh, uint8_t &mm, uint8_t &ss);
 uint8_t hh,mm,ss;
-#endif
-
 #endif
 
 //bioZAP.h///////////////////////////////////////////////////////////////
@@ -251,6 +209,10 @@ void ls();
 void rm();
 void chp(byte relayState);
 void out(byte coilsState);
+void pin3(byte value);
+#ifdef RTC
+void waitFor(byte hh, byte mm, byte ss=0);
+#endif
 //END bioZAP.h/////////////////////////////////////////////////////////////
 
  
@@ -264,7 +226,7 @@ void setup() {
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
-	pinMode(hrmPin,    INPUT); //Devices connection _PULLUP
+	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
 
 	pinMode(btPowerPin, OUTPUT);
 
@@ -348,9 +310,7 @@ void setup() {
 
 		if ((ul > btnBtMode) && programNo && programNo!=4){
 			digitalWrite(btPowerPin,HIGH);
-#ifdef BT_HC05
-			digitalWrite(btPowerPin,LOW);//LOW=on
-#endif
+
 			digitalWrite(redPin, HIGH);
 			programNo = 0; //PC mode via BT
 			btOn=true;
@@ -611,11 +571,7 @@ int executeCmd(String cmdLine, boolean directMode){
  #ifdef RTC
 
      		Serial.println("waiting...");
-     		do  {
-     			rtcGetTime(hh, mm, ss);
-     			delay(300);
-     		} while (param[1].toInt()!=hh || param[2].toInt()!=mm || param[3].toInt()!=ss);
-
+     		waitFor(param[1].toInt(),param[2].toInt(),param[3].toInt());
      		Serial.println("OK");
  #else
      		Serial.println("Error: No RTC support!");
@@ -745,8 +701,22 @@ int executeCmd(String cmdLine, boolean directMode){
         Serial.println("OK");
 
 
+    } else if (param[0]=="blight"){
+ // Turn lcd back light off/on
+
+#ifdef FREEPEMF_DUO
+
+    	if (param[1].toInt()){
+    		lcd.backlight();
+    	} else {
+    		lcd.noBacklight();
+    	}
+#endif
+    	Serial.println("OK");
+
+
     } else if (param[0]=="off"){
-// Turn off 
+// Turn off device
 
     	off();
 
@@ -857,8 +827,6 @@ int executeCmd(String cmdLine, boolean directMode){
     } else if (param[0]=="pin3"){
 // On-off pin3
 
-    	pinMode(hrmPin, OUTPUT); //pin3 output mode
-
     	switch (param[1].charAt(0)) {
     		case '1':
     			pin3State = HIGH;
@@ -878,9 +846,8 @@ int executeCmd(String cmdLine, boolean directMode){
 	    	break;
 
     	}
-//TODO: pin3 function create
-    	digitalWrite(hrmPin, pin3State);
-    	digitalWrite(redPin, pin3State);
+
+    	pin3(pin3State);
     	Serial.println("OK");
 
     } else if (param[0]=="freq"){
@@ -938,6 +905,28 @@ return 0;
 
 
 //bioZAP.h////////////////////////////////////////
+
+#ifdef RTC
+void waitFor(byte hh, byte mm, byte ss){
+byte _hh,_mm,_ss;
+	do  {
+		rtcGetTime(_hh, _mm, _ss);
+     	delay(300);
+     	checkBattLevel();
+    } while ( _hh!=hh || _mm!=mm || _ss!=ss );
+}
+#endif
+
+void pin3(byte value){
+// Use pin3 as output
+//	value=0 - off, value>0 =- on
+
+	pinMode(hrmPin, OUTPUT);
+
+	digitalWrite(hrmPin, value);
+	digitalWrite(redPin, value);
+
+}
 
 void rm(){
 // Remove, clear script therapy from memory
@@ -2109,6 +2098,9 @@ void progressBar (long totalTimeSec, long leftTimeSec) {
 
 }
 
+
+#endif
+
 #ifdef RTC //////////////////////////////////////////////////////////////
 		   // Real Time Clock support and settime, waitfor, gettime commands
 
@@ -2142,5 +2134,3 @@ void progressBar (long totalTimeSec, long leftTimeSec) {
 }
 
  #endif
-
-#endif
