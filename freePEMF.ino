@@ -15,7 +15,7 @@
 #include <Arduino.h>  		// For eclipse IDE only
 
 #define FREEPEMF_DUO  		// Comment that line for standard (not duo) freePEMF device
-//#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
+#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
@@ -74,12 +74,12 @@
 //Battery staff
 #define batPin A7                 // Analog-in battery level
 #define BATTERY_VOLTAGE_RATIO 0.153   // include 10k/4,7k resistor voltage divider. 5V*(10k+4,7k)/4,7k = 0,0153 (x10)
-#define MIN_BATTERY_LEVEL 90          // 90 means 9.0 V  (x10), less then that turn off
+#define MIN_BATTERY_LEVEL 100          // 90 means 9.0 V  (x10), less then that turn off
 #define USB_POWER_SUPPLY_LEVEL 65     // Maximum USB voltage level means 6.5V
 
 
 //bioZAP_def.h/////////////////////////////////////////////////////
-#define WELCOME_SCR "bioZAP interpreter welcome! See http://biotronics.eu"
+#define WELCOME_SCR "bioZAP welcome! See http://biotronics.eu"
 #define PROGRAM_SIZE 1000   // Maximum program size
 #define PROGRAM_BUFFER 64  // SRAM buffer size, used for script loading
 #define MAX_CMD_PARAMS 4    // Count of command parameters
@@ -179,6 +179,7 @@ void rechargeBattery();
 void checkBattLevel();
 void btnEvent();
 int readFlashLine(int fromAddress, String &lineString);
+boolean superPause();
 
 #ifdef FREEPEMF_DUO
 void progressBar (long totalTimeSec, long leftTimeSec);
@@ -226,7 +227,7 @@ void setup() {
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
-	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection
+	pinMode(hrmPin,    INPUT); //Devices connection //_PULLUP
 
 	pinMode(btPowerPin, OUTPUT);
 
@@ -278,7 +279,8 @@ void setup() {
 	} else {
 		//Power supplier id plugged
 
-    
+	    // Configure button interrupt - use pause as powerON from recharge mode;
+	    attachInterrupt(digitalPinToInterrupt(btnPin), btnEvent, CHANGE);
 		//Work as a power charger
 		rechargeBattery();
 	}
@@ -693,7 +695,6 @@ int executeCmd(String cmdLine, boolean directMode){
 
 
 
-
     } else if (param[0]=="beep"){
 // Beep [time_ms]
         
@@ -912,7 +913,10 @@ byte _hh,_mm,_ss;
 	do  {
 		rtcGetTime(_hh, _mm, _ss);
      	delay(300);
+
      	checkBattLevel();
+     	startInterval=millis();
+
     } while ( _hh!=hh || _mm!=mm || _ss!=ss );
 }
 #endif
@@ -1699,6 +1703,7 @@ void checkBattLevel() {
 
 void rechargeBattery() {
   //Recharges is plugged
+boolean stillLoop = true;
   
   digitalWrite(powerPin, LOW); // turn power relay off
   digitalWrite(redPin, HIGH);
@@ -1731,18 +1736,27 @@ void rechargeBattery() {
     	lcd.backlight();
 
 #endif
+    	stillLoop != superPause; //Turn on by check pause
         // ... and charge further.
-        while (1);
+        while (stillLoop);
       }
  
       //Start new charging period with new values
       startInterval = millis();
       startBatLevel = analogRead(batPin);
+      stillLoop != superPause; //Turn on by check pause
     }
-  }  while (1); //forever loop
+  }  while (stillLoop); //forever loop
 }
 
-
+boolean superPause(){
+    if (pause) {
+    	pause = false; //Always off pause during recharging
+    	return true;
+    } else {
+    	return false;
+    }
+}
 
 
 //freePEMF_serial///////////////////////////////////////////////////////////////////////////

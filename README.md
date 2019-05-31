@@ -35,6 +35,10 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 * pause working in xfreq mode (above 61Hz)
 
 #### DONE
+2019-05-31
+* blight [0|1] - turn on/off back light of lcd screen
+* pin3 [0|1|~] - pin3 as output, 0=low, 1=high(5V), ~=change state
+
 2019-05-28 added RTC (DS3231) support. New, time control commands:
 * settime [hh] [mm] [ |ss] - set specific time
 * waitfor [hh] [mm] [ |ss] - wait for specific time
