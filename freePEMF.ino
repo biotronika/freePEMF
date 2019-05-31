@@ -15,7 +15,7 @@
 #include <Arduino.h>  		// For eclipse IDE only
 
 #define FREEPEMF_DUO  		// Comment that line for standard (not duo) freePEMF device
-#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
+//#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
@@ -179,7 +179,7 @@ void rechargeBattery();
 void checkBattLevel();
 void btnEvent();
 int readFlashLine(int fromAddress, String &lineString);
-boolean superPause();
+boolean usePauseBtnAsEscFromForeverLoop();
 
 #ifdef FREEPEMF_DUO
 void progressBar (long totalTimeSec, long leftTimeSec);
@@ -279,10 +279,18 @@ void setup() {
 	} else {
 		//Power supplier id plugged
 
-	    // Configure button interrupt - use pause as powerON from recharge mode;
+	    // Configure button interrupt - use pause as escape from forever loop;
 	    attachInterrupt(digitalPinToInterrupt(btnPin), btnEvent, CHANGE);
-		//Work as a power charger
+
+	    //Work as a power charger
 		rechargeBattery();
+
+		//restore normal sate of innterupt
+		detachInterrupt( digitalPinToInterrupt(btnPin));
+
+		//Start PC mode but with power turned on
+		programNo = 0; //PC
+		digitalWrite(powerPin, HIGH);
 	}
 
 
@@ -1667,8 +1675,8 @@ void checkBattLevel() {
   if ( analogRead(batPin) < minBatteryLevel) { 
     //Emergency turn off 
     Serial.println();  
-    Serial.print("Error: battery too low: ");
-    Serial.println(bat());
+    Serial.println(":LowBattery");
+    //Serial.println(bat());
     
 #ifdef FREEPEMF_DUO
     message("Battery is too low");
@@ -1679,13 +1687,9 @@ void checkBattLevel() {
     digitalWrite(greenPin, LOW);   
       
     // Turn all off
-    out(0); // Turn coil off by making the voltage LOW
-    relayState=0;
-    chp(relayState); // Relay off
+    out(0); 			// Turn coil off by making the voltage LOW
+    chp(relayState=0); 	// Relay off
 
-    //digitalWrite(coilPin, LOW);
-    //digitalWrite(relayPin, LOW);
-        
     for (int x=0; x<10; x++){
       digitalWrite(buzzPin, HIGH);   // Turn buzzer on 
       delay(100); 
@@ -1703,7 +1707,7 @@ void checkBattLevel() {
 
 void rechargeBattery() {
   //Recharges is plugged
-boolean stillLoop = true;
+boolean keepLoop = true;
   
   digitalWrite(powerPin, LOW); // turn power relay off
   digitalWrite(redPin, HIGH);
@@ -1715,8 +1719,10 @@ boolean stillLoop = true;
 	lcd.print( "battery charging");
 	delay(5000);
 	lcd.noBacklight();
-	//TODO message
-		//message ("battery charging");
+
+    Serial.println();
+    Serial.println(":BatteryCharging");
+
 #endif
       
   unsigned long startInterval = millis();
@@ -1736,22 +1742,26 @@ boolean stillLoop = true;
     	lcd.backlight();
 
 #endif
-    	stillLoop != superPause; //Turn on by check pause
+
         // ... and charge further.
-        while (stillLoop);
+        while (keepLoop){
+        	keepLoop != usePauseBtnAsEscFromForeverLoop(); //Turn on by check pause btn;
+        }
       }
  
       //Start new charging period with new values
       startInterval = millis();
       startBatLevel = analogRead(batPin);
-      stillLoop != superPause; //Turn on by check pause
+
     }
-  }  while (stillLoop); //forever loop
+
+    keepLoop != usePauseBtnAsEscFromForeverLoop(); //Turn on by check pause
+  }  while (keepLoop); //forever loop
 }
 
-boolean superPause(){
+boolean usePauseBtnAsEscFromForeverLoop(){
     if (pause) {
-    	pause = false; //Always off pause during recharging
+    	pause = false; //Always off pause in special use pause btn
     	return true;
     } else {
     	return false;
