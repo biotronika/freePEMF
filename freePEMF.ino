@@ -21,7 +21,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-05-31"
+#define SOFT_VER "2019-06-02"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" 	// freePEMF duo
@@ -179,7 +179,7 @@ void rechargeBattery();
 void checkBattLevel();
 void btnEvent();
 int readFlashLine(int fromAddress, String &lineString);
-boolean usePauseBtnAsEscFromForeverLoop();
+boolean checkBtnAsEscFromForeverLoop();
 
 #ifdef FREEPEMF_DUO
 void progressBar (long totalTimeSec, long leftTimeSec);
@@ -227,7 +227,7 @@ void setup() {
 	pinMode(relayPin, OUTPUT);  // Direction signal relay
 	pinMode(buzzPin,  OUTPUT);  // Buzzer relay (5V or 12V which is no so loud)
 	pinMode(btnPin,    INPUT);  // Main button
-	pinMode(hrmPin,    INPUT); //Devices connection //_PULLUP
+	pinMode(hrmPin,    INPUT_PULLUP); //Devices connection //_PULLUP
 
 	pinMode(btPowerPin, OUTPUT);
 
@@ -279,18 +279,22 @@ void setup() {
 	} else {
 		//Power supplier id plugged
 
-	    // Configure button interrupt - use pause as escape from forever loop;
-	    attachInterrupt(digitalPinToInterrupt(btnPin), btnEvent, CHANGE);
-
 	    //Work as a power charger
 		rechargeBattery();
 
-		//restore normal sate of innterupt
-		detachInterrupt( digitalPinToInterrupt(btnPin));
-
-		//Start PC mode but with power turned on
-		programNo = 0; //PC
+		//Turn on if while battery charging pressed button
 		digitalWrite(powerPin, HIGH);
+
+#ifdef FREEPEMF_DUO
+		//Initialize LCD again
+		lcd.init();
+		lcd.backlight();
+
+		message ("freePEMF duo", LCD_PBAR_LINE);
+		message (SOFT_VER, 1);
+
+#endif
+
 	}
 
 
@@ -1729,6 +1733,7 @@ boolean keepLoop = true;
   int startBatLevel = analogRead(batPin);
 
   do {
+
     if ( millis() - startInterval > checkDeltaBatteryIncreasingVoltageTime) {          
       if (analogRead(batPin)-startBatLevel <= 0) { //no increasing voltage
         //Battery recharged
@@ -1744,9 +1749,7 @@ boolean keepLoop = true;
 #endif
 
         // ... and charge further.
-        while (keepLoop){
-        	keepLoop != usePauseBtnAsEscFromForeverLoop(); //Turn on by check pause btn;
-        }
+        while (checkBtnAsEscFromForeverLoop);
       }
  
       //Start new charging period with new values
@@ -1755,17 +1758,23 @@ boolean keepLoop = true;
 
     }
 
-    keepLoop != usePauseBtnAsEscFromForeverLoop(); //Turn on by check pause
-  }  while (keepLoop); //forever loop
+  }  while (checkBtnAsEscFromForeverLoop()); //forever loop
+  lcd.backlight();
 }
 
-boolean usePauseBtnAsEscFromForeverLoop(){
-    if (pause) {
-    	pause = false; //Always off pause in special use pause btn
-    	return true;
-    } else {
-    	return false;
-    }
+boolean checkBtnAsEscFromForeverLoop(){
+    if (digitalRead(btnPin)) {
+    	delay(2000);
+
+    	//Check if after 2 seconds button is still pressed
+    	if(digitalRead(btnPin)){
+    		beep(200);
+    		return false;
+
+    	} else return true;
+    } else
+    return true;
+
 }
 
 
