@@ -15,7 +15,7 @@
 #include <Arduino.h>  		// For eclipse IDE only
 
 #define FREEPEMF_DUO  		// Comment that line for standard (not duo) freePEMF device
-//#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
+#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
@@ -922,12 +922,25 @@ return 0;
 #ifdef RTC
 void waitFor(byte hh, byte mm, byte ss){
 byte _hh,_mm,_ss;
+unsigned long backlightStart = millis();
 	do  {
 		rtcGetTime(_hh, _mm, _ss);
      	delay(300);
 
      	checkBattLevel();
      	startInterval=millis();
+      
+#ifdef FREEPEMF_DUO
+      //Light lcd backlight after button was pressed for 2 seconds
+      if (digitalRead(btnPin)) {
+        lcd.backlight();
+        backlightStart= millis();
+      }
+      if (millis() > backlightStart + 2000) lcd.noBacklight();
+
+      String s = String(_hh)+":"+String(_mm)+":"+String(_ss);
+      message (s, LCD_PBAR_LINE);
+#endif
 
     } while ( _hh!=hh || _mm!=mm || _ss!=ss );
 }
