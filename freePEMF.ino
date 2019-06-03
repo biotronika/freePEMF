@@ -21,7 +21,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-06-02"
+#define SOFT_VER "2019-06-03"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" 	// freePEMF duo
@@ -1649,12 +1649,12 @@ void btnEvent() {
 void getParams(String &inputString){
   for (int i=0; i<MAX_CMD_PARAMS; i++) param[i]="";
 
-  int from =0;
-  int to =0;
+  int from = 0;
+  int to = 0;
   for (int i=0; i<MAX_CMD_PARAMS; i++){
     to = inputString.indexOf(' ',from); //Find SPACE
 
-    if (to==-1) {
+    if (to == -1) {
       to = inputString.indexOf('\n',from); //Find NL #10
       if (to>0) param[i] = inputString.substring(from,to);
       param[i].trim();
@@ -1663,7 +1663,7 @@ void getParams(String &inputString){
 
     if (to>0) param[i] = inputString.substring(from,to);
     param[i].trim();
-    from = to+1;
+    from = to + 1;
   }
 }
 
@@ -1749,7 +1749,7 @@ boolean keepLoop = true;
 #endif
 
         // ... and charge further.
-        while (checkBtnAsEscFromForeverLoop);
+        while (checkBtnAsEscFromForeverLoop());
       }
  
       //Start new charging period with new values
@@ -1759,12 +1759,22 @@ boolean keepLoop = true;
     }
 
   }  while (checkBtnAsEscFromForeverLoop()); //forever loop
-  lcd.backlight();
+
 }
 
 boolean checkBtnAsEscFromForeverLoop(){
     if (digitalRead(btnPin)) {
+
+#ifdef FREEPEMF_DUO
+    	lcd.backlight();
+#endif
+
+    	startInterval = millis();
     	delay(2000);
+
+#ifdef FREEPEMF_DUO
+    	lcd.noBacklight();
+#endif
 
     	//Check if after 2 seconds button is still pressed
     	if(digitalRead(btnPin)){
