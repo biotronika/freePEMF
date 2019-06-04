@@ -15,13 +15,13 @@
 #include <Arduino.h>  		// For eclipse IDE only
 
 #define FREEPEMF_DUO  		// Comment that line for standard (not duo) freePEMF device
-#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
+//#define RTC				// Uncomment if you have DS1307 installed in freePEMF duo
 
 
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-06-03"
+#define SOFT_VER "2019-06-04"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" 	// freePEMF duo
@@ -925,22 +925,32 @@ byte _hh,_mm,_ss;
 unsigned long backlightStart = millis();
 	do  {
 		rtcGetTime(_hh, _mm, _ss);
-     	delay(300);
+
 
      	checkBattLevel();
      	startInterval=millis();
       
-#ifdef FREEPEMF_DUO
-      //Light lcd backlight after button was pressed for 2 seconds
-      if (digitalRead(btnPin)) {
-        lcd.backlight();
-        backlightStart= millis();
-      }
-      if (millis() > backlightStart + 2000) lcd.noBacklight();
+     	while(millis()< 1000 + startInterval) {
 
-      String s = String(_hh)+":"+String(_mm)+":"+String(_ss);
-      message (s, LCD_PBAR_LINE);
+#ifdef FREEPEMF_DUO
+     		//Light lcd backlight after button was pressed for 2 seconds
+     		if (digitalRead(btnPin)) {
+     			lcd.backlight();
+     			backlightStart= millis();
+     		}
+     		if (millis() > backlightStart + 5000) lcd.noBacklight();
+     	}//while(millis()< 1000 + startInterval) {
+     	String s = String(_ss);
+     	if (_ss<10) s = "0"+s;
+     	s = String(_mm)+":"+s;
+     	if(_mm<10) s = "0"+s;
+     	s = String(_hh)+":"+s;
+     	//String s = String(_hh)+":"+String(_mm)+":"+ ("0"+);
+     	message (s, LCD_PBAR_LINE);
+#else
+		}//while(millis()< 1000 + startInterval) {
 #endif
+
 
     } while ( _hh!=hh || _mm!=mm || _ss!=ss );
 }
@@ -1511,6 +1521,12 @@ void off() {
 	digitalWrite(powerPin, LOW);  	// Turn power off //If not USB power
 
 	while(digitalRead(btnPin)==HIGH); // Wait because still power on
+
+#ifdef FREEPEMF_DUO
+	lcd.init();
+	lcd.noBacklight();
+#endif
+
 
 	//If USB PC connection is plugged to arduino pcb cannot turn power off
 	while(1); //forever loop
