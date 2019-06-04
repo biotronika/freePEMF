@@ -212,7 +212,7 @@ void chp(byte relayState);
 void out(byte coilsState);
 void pin3(byte value);
 #ifdef RTC
-void waitFor(byte hh, byte mm, byte ss=0);
+void waitFor(byte hh, byte mm);
 #endif
 //END bioZAP.h/////////////////////////////////////////////////////////////
 
@@ -553,7 +553,7 @@ int executeCmd(String cmdLine, boolean directMode){
 #ifdef RTC
     		hh = param[1].toInt();
     		mm = param[2].toInt();
-    		ss = param[3].toInt();
+
     		rtcSetTime(hh, mm, ss);
     		Serial.println("OK");
 #else
@@ -585,7 +585,7 @@ int executeCmd(String cmdLine, boolean directMode){
  #ifdef RTC
 
      		Serial.println("waiting...");
-     		waitFor(param[1].toInt(),param[2].toInt(),param[3].toInt());
+     		waitFor(param[1].toInt(),param[2].toInt());
      		Serial.println("OK");
  #else
      		Serial.println("Error: No RTC support!");
@@ -920,7 +920,7 @@ return 0;
 //bioZAP.h////////////////////////////////////////
 
 #ifdef RTC
-void waitFor(byte hh, byte mm, byte ss){
+void waitFor(byte hh, byte mm){
 byte _hh,_mm,_ss;
 unsigned long backlightStart = millis();
 	do  {
@@ -952,7 +952,7 @@ unsigned long backlightStart = millis();
 #endif
 
 
-    } while ( _hh!=hh || _mm!=mm || _ss!=ss );
+    } while ( _hh!=hh || _mm!=mm );
 }
 #endif
 
