@@ -1325,6 +1325,9 @@ void freq(unsigned long _freq, long period, byte pwm) {
 	lastFreq =_freq;
 	boolean flashLED = 1;
 
+	//Prevent pause turn on during waitFor
+	pause=false;
+
 	if (lastFreq==0) lastFreq=1;
 
 	if (lastFreq>MAX_FREQ_OUT) {
