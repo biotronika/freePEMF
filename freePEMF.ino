@@ -21,7 +21,7 @@
 //#define SERIAL_DEBUG     	// Uncomment this line for debug purpose
 //#define NO_CHECK_BATTERY 	// Uncomment this line for debug purpose
 
-#define SOFT_VER "2019-06-04"
+#define SOFT_VER "2019-06-10"
 
 #ifdef FREEPEMF_DUO
  #define HRDW_VER "NANO 5.0" 	// freePEMF duo
@@ -270,8 +270,8 @@ void setup() {
 		message ("freePEMF duo", LCD_PBAR_LINE); //Add PC mark
 #endif
     
-	} else if (digitalRead(btnPin)==HIGH) {
-		//Power button pressed
+	} else if ( (digitalRead(btnPin)==HIGH) || (digitalRead(hrmPin)==LOW) ) {
+		//Power button pressed or pin 3 is connected to ground
     
 		//Turn power on
 		digitalWrite(powerPin, HIGH);
