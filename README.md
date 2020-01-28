@@ -16,7 +16,7 @@ or a litle out of date for Polish: [bioZAP 2018-04-09.pdf](https://biotronika.pl
 5. Configure board: Tools->Board->Arduino Nano  and **Tools->Processor->ATmega328P (Old Bootloader)**.
 6. Install Arduino Nano driver - **biotronics.eu** website: [CH341SER.ZIP]( https://biotronika.pl/sites/default/files/2016-12/CH341SER.ZIP).
 7. Configure serial port. Plug USB cable to PC and freePEMF or Adruino Nano board. Then Tools->Port->select proper COM port.
-8. Uncomment proper directives e.g. #define FREEPEMF_DUO. For standard freePEMF default commented options are good.
+8. Uncomment proper directives e.g. #define FREEPEMF_DUO. For freePEMF duo default commented options are good.
 10. Compile and upload. Sketch->Upload. Wait until on down side of Arduino IDE window see **Done uploading**.
 
 
